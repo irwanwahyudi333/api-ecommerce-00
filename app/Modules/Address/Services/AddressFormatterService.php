@@ -16,7 +16,14 @@ final class AddressFormatterService
         }
 
         if (is_array($address)) {
-            return implode(', ', array_filter($address));
+            $strings = [];
+            foreach ($address as $value) {
+                if (! empty($value) && (is_scalar($value) || $value instanceof \Stringable)) {
+                    $strings[] = (string) $value;
+                }
+            }
+
+            return implode(', ', $strings);
         }
 
         return (string) $address;

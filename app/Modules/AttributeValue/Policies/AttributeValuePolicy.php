@@ -65,14 +65,15 @@ class AttributeValuePolicy
             return true;
         }
 
-        if ($user->hasPermissionTo(Permission::STORE_OWNER->value) && $attributeValue->attribute->shop_id) {
-            $shop = Shop::find($attributeValue->attribute->shop_id);
+        if ($user->hasPermissionTo(Permission::STORE_OWNER->value) && $attributeValue->attribute?->shop_id) {
+            /** @var Shop|null $shop */
+            $shop = Shop::find((int) $attributeValue->attribute->shop_id);
 
             return $shop && $shop->owner_id === $user->id;
         }
 
         // Staff permission to update attribute values for their shop
-        if ($user->hasPermissionTo(Permission::STAFF->value) && $user->shop_id === $attributeValue->attribute->shop_id) {
+        if ($user->hasPermissionTo(Permission::STAFF->value) && $user->shop_id === $attributeValue->attribute?->shop_id) {
             return true;
         }
 
@@ -88,14 +89,15 @@ class AttributeValuePolicy
             return true;
         }
 
-        if ($user->hasPermissionTo(Permission::STORE_OWNER->value) && $attributeValue->attribute->shop_id) {
-            $shop = Shop::find($attributeValue->attribute->shop_id);
+        if ($user->hasPermissionTo(Permission::STORE_OWNER->value) && $attributeValue->attribute?->shop_id) {
+            /** @var Shop|null $shop */
+            $shop = Shop::find((int) $attributeValue->attribute->shop_id);
 
             return $shop && $shop->owner_id === $user->id;
         }
 
         // Staff permission to delete attribute values for their shop
-        if ($user->hasPermissionTo(Permission::STAFF->value) && $user->shop_id === $attributeValue->attribute->shop_id) {
+        if ($user->hasPermissionTo(Permission::STAFF->value) && $user->shop_id === $attributeValue->attribute?->shop_id) {
             return true;
         }
 

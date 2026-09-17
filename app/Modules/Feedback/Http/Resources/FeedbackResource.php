@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Feedback\Http\Resources;
 
 use App\Models\Feedback;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -13,6 +14,9 @@ use Illuminate\Http\Resources\Json\JsonResource;
  */
 class FeedbackResource extends JsonResource
 {
+    /**
+     * @return array<string, mixed>
+     */
     public function toArray(Request $request): array
     {
         return [
@@ -23,10 +27,13 @@ class FeedbackResource extends JsonResource
             'negative' => $this->negative,
             'user_id' => $this->user_id,
             'user' => $this->whenLoaded('user', function () {
+                /** @var User $user */
+                $user = $this->user;
+
                 return [
-                    'id' => $this->user->id,
-                    'name' => $this->user->name,
-                    'email' => $this->user->email,
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
                 ];
             }),
             'created_at' => $this->created_at?->toISOString(),

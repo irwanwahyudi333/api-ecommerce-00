@@ -25,9 +25,8 @@ class CreateReportAction
             return $report;
         } catch (QueryException $e) {
             if ((int) $e->getCode() === 23000) {
-                throw new RuntimeException(
-                    config('notice.YOU_HAVE_ALREADY_GIVEN_ABUSIVE_REPORT_FOR_THIS', 'Anda sudah melaporkan ini sebelumnya.')
-                );
+                $msg = config('notice.YOU_HAVE_ALREADY_GIVEN_ABUSIVE_REPORT_FOR_THIS', 'Anda sudah melaporkan ini sebelumnya.');
+                throw new RuntimeException(is_string($msg) ? $msg : 'Anda sudah melaporkan ini sebelumnya.');
             }
             throw $e;
         }

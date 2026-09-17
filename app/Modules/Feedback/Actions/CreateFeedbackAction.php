@@ -12,6 +12,7 @@ class CreateFeedbackAction
 {
     public function execute(Model $target, FeedbackData $data): Feedback
     {
+        /** @phpstan-ignore method.notFound */
         return $target->feedbacks()->create($data->toArray());
     }
 }

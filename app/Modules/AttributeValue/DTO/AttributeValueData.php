@@ -15,15 +15,19 @@ class AttributeValueData
         public readonly ?string $language,
     ) {}
 
+    /** @param array<string, mixed> $data */
     public static function fromRequest(array $data): self
     {
+        /** @var string $defaultLanguage */
+        $defaultLanguage = config('shop.default_language', 'id');
+
         return new self(
-            value: $data['value'] ?? null,
-            meta: $data['meta'] ?? null,
-            price: $data['price'] ?? null,
-            shop_id: $data['shop_id'] ?? null,
-            attribute_id: $data['attribute_id'] ?? null,
-            language: $data['language'] ?? config('shop.default_language', 'id'),
+            value: isset($data['value']) && is_string($data['value']) ? $data['value'] : null,
+            meta: isset($data['meta']) && is_string($data['meta']) ? $data['meta'] : null,
+            price: isset($data['price']) && is_numeric($data['price']) ? (float) $data['price'] : null,
+            shop_id: isset($data['shop_id']) && is_numeric($data['shop_id']) ? (int) $data['shop_id'] : null,
+            attribute_id: isset($data['attribute_id']) && is_numeric($data['attribute_id']) ? (int) $data['attribute_id'] : null,
+            language: isset($data['language']) && is_string($data['language']) ? $data['language'] : $defaultLanguage,
         );
     }
 }

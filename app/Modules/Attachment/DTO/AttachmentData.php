@@ -15,10 +15,16 @@ final class AttachmentData
         public readonly array $files,
     ) {}
 
+    /**
+     * @param array<string, mixed> $data
+     */
     public static function fromRequest(array $data): self
     {
+        /** @var array<int, UploadedFile> $files */
+        $files = $data['attachment'] ?? [];
+
         return new self(
-            files: $data['attachment'] ?? [],
+            files: $files,
         );
     }
 }

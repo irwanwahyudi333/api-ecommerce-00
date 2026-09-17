@@ -10,6 +10,9 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 final class GetUserAddressesQuery
 {
+    /**
+     * @return LengthAwarePaginator<int, Address>
+     */
     public function execute(User $user, int $perPage = 15): LengthAwarePaginator
     {
         return Address::query()

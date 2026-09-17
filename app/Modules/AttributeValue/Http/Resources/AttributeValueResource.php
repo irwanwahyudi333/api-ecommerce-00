@@ -8,11 +8,16 @@ use App\Models\AttributeValue;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
+ * @property \App\Models\AttributeValue $resource
  * @mixin AttributeValue
  */
 class AttributeValueResource extends JsonResource
 {
-    public function toArray($request)
+    /**
+     * @param \Illuminate\Http\Request $request
+     * @return array<string, mixed>
+     */
+    public function toArray($request): array
     {
         return [
             'id' => $this->resource->id,

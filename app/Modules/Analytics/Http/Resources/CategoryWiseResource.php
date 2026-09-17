@@ -8,7 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
- * @mixin array{ category_id: int, category_name: string, shop_name?: string, product_count?: int, total_sales?: float }
+ * @property-read array{ category_id: int, category_name: string, shop_name?: string, product_count?: int, total_sales?: float } $resource
  */
 class CategoryWiseResource extends JsonResource
 {
@@ -18,11 +18,11 @@ class CategoryWiseResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'category_id' => $this['category_id'],
-            'category_name' => $this['category_name'],
-            'shop_name' => $this['shop_name'] ?? null,
-            'product_count' => $this['product_count'] ?? null,
-            'total_sales' => $this['total_sales'] ?? null,
+            'category_id' => $this->resource['category_id'],
+            'category_name' => $this->resource['category_name'],
+            'shop_name' => $this->resource['shop_name'] ?? null,
+            'product_count' => $this->resource['product_count'] ?? null,
+            'total_sales' => $this->resource['total_sales'] ?? null,
         ];
     }
 }

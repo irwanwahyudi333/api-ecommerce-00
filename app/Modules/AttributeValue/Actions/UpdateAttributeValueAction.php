@@ -22,6 +22,6 @@ class UpdateAttributeValueAction
 
         $attributeValue->update($updateData);
 
-        return $attributeValue->fresh();
+        return $attributeValue->refresh();
     }
 }

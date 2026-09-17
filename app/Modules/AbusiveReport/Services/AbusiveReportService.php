@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace App\Modules\AbusiveReport\Services;
 
 use App\Models\AbusiveReport;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class AbusiveReportService
 {
     /**
-     * @return LengthAwarePaginator<AbusiveReport>
+     * @return LengthAwarePaginator<int, AbusiveReport>
      */
     public function getReports(int $perPage = 15): LengthAwarePaginator
     {
@@ -28,7 +28,7 @@ class AbusiveReportService
     }
 
     /**
-     * @return LengthAwarePaginator<AbusiveReport>
+     * @return LengthAwarePaginator<int, AbusiveReport>
      */
     public function getUserReports(int $userId, int $perPage = 15): LengthAwarePaginator
     {

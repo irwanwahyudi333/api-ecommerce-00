@@ -21,6 +21,9 @@ enum AbusiveReportType: string
         return array_column(self::cases(), 'value');
     }
 
+    /**
+     * @return class-string<Question|Review>
+     */
     public function modelClass(): string
     {
         return match ($this) {
@@ -35,8 +38,6 @@ enum AbusiveReportType: string
     }
 
     /**
-     * @param  class-string  $class
-     *
      * @throws InvalidArgumentException
      */
     public static function fromModelClass(string $class): string

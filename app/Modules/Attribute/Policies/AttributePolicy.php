@@ -33,7 +33,9 @@ class AttributePolicy
         }
 
         if ($user->hasPermissionTo(Permission::STORE_OWNER->value)) {
-            return $attribute->shop && $attribute->shop->owner_id === $user->id;
+            /** @var \App\Models\Shop|null $shop */
+            $shop = $attribute->shop;
+            return $shop && $shop->owner_id === $user->id;
         }
 
         return false;

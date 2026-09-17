@@ -24,7 +24,7 @@ class FeedbackPolicy
 
     public function create(User $user): bool
     {
-        return $user !== null;
+        return true;
     }
 
     public function update(User $user, Feedback $feedback): bool

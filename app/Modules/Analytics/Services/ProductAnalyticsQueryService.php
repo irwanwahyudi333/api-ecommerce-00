@@ -7,7 +7,7 @@ namespace App\Modules\Analytics\Services;
 use App\Enums\OrderStatus;
 use App\Enums\Permission;
 use App\Models\Product;
-use Illuminate\Contracts\Auth\Authenticatable;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -21,7 +21,7 @@ class ProductAnalyticsQueryService
      * @return Collection<int, Product>
      */
     public function getLowStockProducts(
-        ?Authenticatable $user,
+        ?User $user,
         string $language,
         ?int $typeId = null,
         ?int $shopId = null,
@@ -29,7 +29,7 @@ class ProductAnalyticsQueryService
         int $cacheTtl = 60
     ) {
         $cacheKey = 'analytics_low_stock_'
-            .($user?->id ?? 'guest')
+            .($user->id ?? 'guest')
             .'_'.$language
             .'_'.($typeId ?? 'all')
             .'_'.($shopId ?? 'all')
@@ -48,7 +48,7 @@ class ProductAnalyticsQueryService
      * @return Builder<Product>
      */
     public function buildLowStockQuery(
-        ?Authenticatable $user,
+        ?User $user,
         string $language,
         ?int $typeId = null,
         ?int $shopId = null
@@ -81,25 +81,31 @@ class ProductAnalyticsQueryService
      * @return array<int, array{ category_id: int, category_name: string, shop_name: string, product_count: int }>
      */
     public function getCategoryWiseProductCount(
-        ?Authenticatable $user,
+        ?User $user,
         string $language,
         int $limit = 15,
         int $cacheTtl = 300
     ): array {
         $cacheKey = 'analytics_category_count_'
-            .($user?->id ?? 'guest')
+            .($user->id ?? 'guest')
             .'_'.$language
             .'_'.$limit;
 
-        return Cache::remember($cacheKey, $cacheTtl, function () use ($user, $language, $limit) {
+        /** @var array<int, array{ category_id: int, category_name: string, shop_name: string, product_count: int }> $result */
+        $result = Cache::remember($cacheKey, $cacheTtl, function () use ($user, $language, $limit) {
             return $this->categoryWiseProductCount($user, $language, $limit);
         });
+
+        return $result;
     }
 
     /**
      * Implementasi internal tanpa cache.
      */
-    private function categoryWiseProductCount(?Authenticatable $user, string $language, int $limit): array
+    /**
+     * @return array<int, array{category_id: int, category_name: string, shop_name: string, product_count: int}>
+     */
+    private function categoryWiseProductCount(?User $user, string $language, int $limit): array
     {
         $shopIds = $this->getShopIdsForUser($user);
         if ($shopIds === []) {
@@ -125,7 +131,19 @@ class ProductAnalyticsQueryService
             $query->whereIn('shops.id', $shopIds);
         }
 
-        return $query->get()->toArray();
+        /** @var list<object{category_id: int|string, category_name: string, shop_name: string, product_count: int|string}> $items */
+        $items = $query->get()->toArray();
+
+        $mapped = array_map(function (object $item) {
+            return [
+                'category_id' => (int) $item->category_id,
+                'category_name' => (string) $item->category_name,
+                'shop_name' => (string) $item->shop_name,
+                'product_count' => (int) $item->product_count,
+            ];
+        }, $items);
+
+        return $mapped;
     }
 
     /**
@@ -134,25 +152,31 @@ class ProductAnalyticsQueryService
      * @return array<int, array{ category_id: int, category_name: string, total_sales: float }>
      */
     public function getCategoryWiseProductSales(
-        ?Authenticatable $user,
+        ?User $user,
         string $language,
         int $limit = 15,
         int $cacheTtl = 300
     ): array {
         $cacheKey = 'analytics_category_sales_'
-            .($user?->id ?? 'guest')
+            .($user->id ?? 'guest')
             .'_'.$language
             .'_'.$limit;
 
-        return Cache::remember($cacheKey, $cacheTtl, function () use ($user, $language, $limit) {
+        /** @var array<int, array{ category_id: int, category_name: string, total_sales: float }> $result */
+        $result = Cache::remember($cacheKey, $cacheTtl, function () use ($user, $language, $limit) {
             return $this->categoryWiseProductSalesInternal($user, $language, $limit);
         });
+
+        return $result;
     }
 
     /**
      * Internal: category wise sales.
      */
-    private function categoryWiseProductSalesInternal(?Authenticatable $user, string $language, int $limit): array
+    /**
+     * @return array<int, array{category_id: int, category_name: string, total_sales: float}>
+     */
+    private function categoryWiseProductSalesInternal(?User $user, string $language, int $limit): array
     {
         $shopIds = $this->getShopIdsForUser($user);
         if ($shopIds === []) {
@@ -179,7 +203,18 @@ class ProductAnalyticsQueryService
             $query->whereIn('products.shop_id', $shopIds);
         }
 
-        return $query->get()->toArray();
+        /** @var list<object{category_id: int|string, category_name: string, total_sales: float|string}> $items */
+        $items = $query->get()->toArray();
+
+        $mapped = array_map(function (object $item) {
+            return [
+                'category_id' => (int) $item->category_id,
+                'category_name' => (string) $item->category_name,
+                'total_sales' => (float) $item->total_sales,
+            ];
+        }, $items);
+
+        return $mapped;
     }
 
     /**
@@ -188,13 +223,13 @@ class ProductAnalyticsQueryService
      * @return Collection<int, Product>
      */
     public function getTopRatedProducts(
-        ?Authenticatable $user,
+        ?User $user,
         string $language,
         int $limit = 10,
         int $cacheTtl = 300
     ) {
         $cacheKey = 'analytics_top_rated_'
-            .($user?->id ?? 'guest')
+            .($user->id ?? 'guest')
             .'_'.$language
             .'_'.$limit;
 
@@ -224,7 +259,7 @@ class ProductAnalyticsQueryService
      *
      * @return int[]|null (null = semua toko, [] = tidak ada akses)
      */
-    private function getShopIdsForUser(?Authenticatable $user): ?array
+    private function getShopIdsForUser(?User $user): ?array
     {
         if (! $user) {
             return [];
@@ -235,7 +270,10 @@ class ProductAnalyticsQueryService
         }
 
         if ($user->hasPermissionTo(Permission::STORE_OWNER->value)) {
-            return $user->shops()->pluck('shops.id')->toArray();
+            /** @var array<int|string> $ids */
+            $ids = $user->shops()->pluck('shops.id')->toArray();
+
+            return array_map('intval', $ids);
         }
 
         if ($user->hasPermissionTo(Permission::STAFF->value)) {

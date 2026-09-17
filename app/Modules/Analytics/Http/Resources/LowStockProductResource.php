@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Modules\Analytics\Http\Resources;
 
 use App\Models\Product;
+use App\Models\Shop;
+use App\Models\Type;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -13,6 +15,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
  *
  * @property-read int $stock
  * @property-read int $low_stock_threshold
+ * @property-read Shop|null $shop
+ * @property-read Type|null $type
  */
 class LowStockProductResource extends JsonResource
 {
@@ -27,14 +31,14 @@ class LowStockProductResource extends JsonResource
             'sku' => $this->sku,
             'in_stock' => $this->in_stock,
             'low_stock_threshold' => $this->low_stock_threshold,
-            'shop' => [
+            'shop' => $this->shop ? [
                 'id' => $this->shop->id,
                 'name' => $this->shop->name,
-            ],
-            'type' => [
+            ] : null,
+            'type' => $this->type ? [
                 'id' => $this->type->id,
                 'name' => $this->type->name,
-            ],
+            ] : null,
             'price' => $this->price,
         ];
     }

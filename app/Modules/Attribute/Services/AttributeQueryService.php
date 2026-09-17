@@ -5,12 +5,18 @@ declare(strict_types=1);
 namespace App\Modules\Attribute\Services;
 
 use App\Models\Attribute;
+use App\Models\User;
+use App\Modules\Attribute\Actions\ExportAttributesAction;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Cache;
 
 final class AttributeQueryService
 {
     private const CACHE_TTL_SECONDS = 3600; // 1 hour
+
+    public function __construct(
+        private readonly ExportAttributesAction $exportAttributesAction
+    ) {}
 
     /**
      * @return Collection<int, Attribute>
@@ -40,5 +46,13 @@ final class AttributeQueryService
     public function findOrFail(int $id): Attribute
     {
         return Attribute::findOrFail($id);
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function exportAttributes(int $shopId, User $user): array
+    {
+        return $this->exportAttributesAction->execute($shopId, $user);
     }
 }

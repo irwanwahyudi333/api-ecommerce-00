@@ -18,6 +18,7 @@ final class ImportAttributesAction
     {
         $path = $file->store('csv-files', 'public');
         $fullPath = Storage::path('public/'.$path);
+        /** @var array<int, array<string, string>> $data */
         $data = $this->csvToArray($fullPath);
 
         if (empty($data)) {
@@ -34,7 +35,8 @@ final class ImportAttributesAction
 
             $values = [];
             if (isset($attributeData['values'])) {
-                $values = explode(',', (string) $attributeData['values']);
+                $valStr = is_scalar($attributeData['values']) ? (string) $attributeData['values'] : '';
+                $values = explode(',', $valStr);
                 unset($attributeData['values']);
             }
 
@@ -51,11 +53,14 @@ final class ImportAttributesAction
             }
         }
 
-        Cache::forget(self::CACHE_KEY_PREFIX.config('shop.default_language', 'id').'_*'); // Invalidate general cache
+        $defaultLang = config('shop.default_language', 'id');
+        $defaultLangStr = is_scalar($defaultLang) ? (string) $defaultLang : 'id';
+        Cache::forget(self::CACHE_KEY_PREFIX.$defaultLangStr.'_*'); // Invalidate general cache
     }
 
     /**
      * Helper to convert CSV to array
+     * @return array<int, array<string, string>>
      */
     private function csvToArray(string $filename, string $delimiter = ','): array
     {
@@ -63,13 +68,16 @@ final class ImportAttributesAction
             return [];
         }
 
+        /** @var array<int, string>|null $header */
         $header = null;
         $data = [];
         if (($handle = fopen($filename, 'r')) !== false) {
             while (($row = fgetcsv($handle, 0, $delimiter)) !== false) {
                 if (! $header) {
+                    /** @var array<int, string> $row */
                     $header = $row;
                 } else {
+                    /** @var array<int, string> $row */
                     if (count($header) === count($row)) {
                         $data[] = array_combine($header, $row);
                     }

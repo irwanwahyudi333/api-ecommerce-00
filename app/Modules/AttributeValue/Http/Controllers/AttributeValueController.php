@@ -11,6 +11,7 @@ use App\Modules\AttributeValue\Http\Requests\AttributeValueRequest;
 use App\Modules\AttributeValue\Http\Resources\AttributeValueResource;
 use App\Modules\AttributeValue\Services\AttributeValueQueryService;
 use App\Modules\AttributeValue\Services\AttributeValueWriteService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class AttributeValueController extends BaseController
@@ -20,7 +21,7 @@ class AttributeValueController extends BaseController
         private readonly AttributeValueWriteService $attributeValueWriteService
     ) {}
 
-    public function index()
+    public function index(): JsonResponse
     {
         $values = $this->attributeValueQueryService->getAllAttributeValues();
 
@@ -30,7 +31,7 @@ class AttributeValueController extends BaseController
         );
     }
 
-    public function store(AttributeValueRequest $request)
+    public function store(AttributeValueRequest $request): JsonResponse
     {
         $this->authorize('create', [AttributeValue::class, $request->shop_id]);
 
@@ -44,7 +45,7 @@ class AttributeValueController extends BaseController
         );
     }
 
-    public function show(int $id)
+    public function show(int $id): JsonResponse
     {
         $value = $this->attributeValueQueryService->getAttributeValueById($id);
 
@@ -54,7 +55,7 @@ class AttributeValueController extends BaseController
         );
     }
 
-    public function update(AttributeValueRequest $request, int $id)
+    public function update(AttributeValueRequest $request, int $id): JsonResponse
     {
         $value = $this->attributeValueQueryService->getAttributeValueById($id);
         $this->authorize('update', $value);
@@ -68,7 +69,7 @@ class AttributeValueController extends BaseController
         );
     }
 
-    public function destroy(Request $request, int $id)
+    public function destroy(Request $request, int $id): JsonResponse
     {
         $value = $this->attributeValueQueryService->getAttributeValueById($id);
         $this->authorize('delete', $value);

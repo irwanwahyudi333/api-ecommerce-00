@@ -11,6 +11,9 @@ use Illuminate\Support\Facades\DB;
 
 class RevenueAnalyticsQueryService
 {
+    /**
+     * @param  array<int>|null  $shopIds
+     */
     public function getTotalRevenue(?array $shopIds, bool $isSuperAdmin, int $cacheTtl = 300): float
     {
         $cacheKey = 'analytics_revenue_total_'.($isSuperAdmin ? 'admin' : implode('_', $shopIds ?? []));
@@ -20,6 +23,9 @@ class RevenueAnalyticsQueryService
         });
     }
 
+    /**
+     * @param  array<int>|null  $shopIds
+     */
     public function getTodaysRevenue(?array $shopIds, bool $isSuperAdmin, int $cacheTtl = 60): float
     {
         $cacheKey = 'analytics_revenue_today_'.($isSuperAdmin ? 'admin' : implode('_', $shopIds ?? []));
@@ -29,6 +35,9 @@ class RevenueAnalyticsQueryService
         });
     }
 
+    /**
+     * @param  array<int>|null  $shopIds
+     */
     public function getTotalRefunds(?array $shopIds, bool $isSuperAdmin, int $cacheTtl = 300): float
     {
         $cacheKey = 'analytics_refunds_'.($isSuperAdmin ? 'admin' : implode('_', $shopIds ?? []));
@@ -39,17 +48,24 @@ class RevenueAnalyticsQueryService
     }
 
     /**
+     * @param  array<int>|null  $shopIds
      * @return array<int, array{month: string, total: float}>
      */
     public function getMonthlySalesData(?array $shopIds, bool $isSuperAdmin, int $cacheTtl = 300): array
     {
         $cacheKey = 'analytics_monthly_sales_'.($isSuperAdmin ? 'admin' : implode('_', $shopIds ?? []));
 
-        return Cache::remember($cacheKey, $cacheTtl, function () use ($shopIds, $isSuperAdmin) {
+        /** @var array<int, array{month: string, total: float}> $result */
+        $result = Cache::remember($cacheKey, $cacheTtl, function () use ($shopIds, $isSuperAdmin) {
             return $this->calculateMonthlySalesData($shopIds, $isSuperAdmin);
         });
+
+        return $result;
     }
 
+    /**
+     * @param  array<int>|null  $shopIds
+     */
     private function calculateTotalRevenue(?array $shopIds, bool $isSuperAdmin): float
     {
         $query = DB::table('orders as childOrder')
@@ -61,9 +77,12 @@ class RevenueAnalyticsQueryService
             ->whereNotNull('childOrder.parent_id');
 
         if ($isSuperAdmin) {
-            return (float) (clone $query)
+            /** @var numeric-string|int|float|null $val */
+            $val = (clone $query)
                 ->selectRaw('SUM(childOrder.paid_total + parentOrder.delivery_fee + parentOrder.sales_tax) as total')
-                ->value('total') ?: 0.0;
+                ->value('total');
+
+            return (float) $val ?: 0.0;
         }
 
         return (float) (clone $query)
@@ -71,6 +90,9 @@ class RevenueAnalyticsQueryService
             ->sum('childOrder.paid_total') ?: 0.0;
     }
 
+    /**
+     * @param  array<int>|null  $shopIds
+     */
     private function calculateTodaysRevenue(?array $shopIds, bool $isSuperAdmin): float
     {
         $query = DB::table('orders as childOrder')
@@ -81,9 +103,12 @@ class RevenueAnalyticsQueryService
             ->whereNotNull('childOrder.parent_id');
 
         if ($isSuperAdmin) {
-            return (float) (clone $query)
+            /** @var numeric-string|int|float|null $val */
+            $val = (clone $query)
                 ->selectRaw('SUM(childOrder.paid_total + parentOrder.delivery_fee + parentOrder.sales_tax) as total')
-                ->value('total') ?: 0.0;
+                ->value('total');
+
+            return (float) $val ?: 0.0;
         }
 
         return (float) (clone $query)
@@ -91,6 +116,9 @@ class RevenueAnalyticsQueryService
             ->sum('childOrder.paid_total') ?: 0.0;
     }
 
+    /**
+     * @param  array<int>|null  $shopIds
+     */
     private function calculateTotalRefunds(?array $shopIds, bool $isSuperAdmin): float
     {
         $query = DB::table('refunds')->where('created_at', '<', Carbon::now());
@@ -102,6 +130,10 @@ class RevenueAnalyticsQueryService
         return (float) $query->whereIn('shop_id', $shopIds ?? [])->sum('amount') ?: 0.0;
     }
 
+    /**
+     * @param  array<int>|null  $shopIds
+     * @return array<int, array{month: string, total: float}>
+     */
     private function calculateMonthlySalesData(?array $shopIds, bool $isSuperAdmin): array
     {
         $currentYear = Carbon::now()->year;
@@ -139,9 +171,14 @@ class RevenueAnalyticsQueryService
             ->pluck('total', 'month')
             ->toArray();
 
-        return array_map(fn ($month) => [
-            'month' => $month,
-            'total' => (float) ($totalByMonth[$month] ?? 0.0),
-        ], $months);
+        return array_map(function ($month) use ($totalByMonth) {
+            /** @var numeric-string|int|float|null $val */
+            $val = $totalByMonth[$month] ?? 0.0;
+
+            return [
+                'month' => $month,
+                'total' => (float) $val,
+            ];
+        }, $months);
     }
 }

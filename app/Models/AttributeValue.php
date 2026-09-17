@@ -7,6 +7,16 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
 
+/**
+ * @property int $id
+ * @property string $value
+ * @property int $attribute_id
+ * @property string $slug
+ * @property string|null $meta
+ * @property string $language
+ * @property array $translated_languages
+ * @property \App\Models\Attribute|null $attribute
+ */
 class AttributeValue extends Model
 {
     use HasFactory;

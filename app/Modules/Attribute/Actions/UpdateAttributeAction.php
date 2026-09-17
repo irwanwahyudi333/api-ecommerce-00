@@ -15,16 +15,18 @@ class UpdateAttributeAction
     {
         // Update values: delete removed, update existing, create new
         if ($data->values !== null) {
+            /** @var array<int> $existingIds */
             $existingIds = $attribute->values->pluck('id')->toArray();
+            /** @var array<int> $newIds */
             $newIds = [];
             foreach ($data->values as $value) {
-                if (isset($value['id']) && in_array($value['id'], $existingIds)) {
+                if (isset($value['id']) && is_numeric($value['id']) && in_array($value['id'], $existingIds)) {
                     AttributeValue::where('id', $value['id'])->update($value);
-                    $newIds[] = $value['id'];
+                    $newIds[] = (int) $value['id'];
                 } elseif (! isset($value['id'])) {
                     $value['attribute_id'] = $attribute->id;
                     $newVal = AttributeValue::create($value);
-                    $newIds[] = $newVal->id;
+                    $newIds[] = (int) $newVal->id;
                 }
             }
             $toDelete = array_diff($existingIds, $newIds);

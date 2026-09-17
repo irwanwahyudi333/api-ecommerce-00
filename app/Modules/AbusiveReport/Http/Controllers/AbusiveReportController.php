@@ -32,7 +32,7 @@ class AbusiveReportController extends BaseController
     {
         $this->authorize('viewAny', AbusiveReport::class);
 
-        $perPage = (int) $request->input('limit', 15);
+        $perPage = $request->integer('limit', 15);
         $perPage = max(1, min($perPage, 100));
 
         $paginator = $this->queryService->getReports($perPage);
@@ -46,13 +46,25 @@ class AbusiveReportController extends BaseController
 
     public function store(CreateAbusiveReportRequest $request): JsonResponse
     {
+        $user = $request->user();
+        if (! $user) {
+            abort(401);
+        }
+
+        $userId = $user->getAuthIdentifier();
+        if (! is_numeric($userId)) {
+            abort(401);
+        }
+
+        /** @var array<string, mixed> $validated */
+        $validated = $request->validated();
 
         $data = AbusiveReportData::fromRequest(
-            $request->validated(),
-            (int) $request->user()->id
+            $validated,
+            (int) $userId
         );
 
-        $report = $this->createAction->execute($data, $request->user());
+        $report = $this->createAction->execute($data, $user);
 
         return $this->sendSuccess(
             new AbusiveReportResource($report),
@@ -86,9 +98,16 @@ class AbusiveReportController extends BaseController
     {
         $this->authorize('accept', AbusiveReport::class);
 
+        $modelType = $request->validated('model_type');
+        $modelId = $request->validated('model_id');
+
+        if (! is_string($modelType) || ! is_numeric($modelId)) {
+            abort(400);
+        }
+
         $this->acceptAction->execute(
-            $request->validated('model_type'),
-            (int) $request->validated('model_id')
+            $modelType,
+            (int) $modelId
         );
 
         return $this->sendSuccess(null, 'Laporan berhasil diterima.');
@@ -98,9 +117,16 @@ class AbusiveReportController extends BaseController
     {
         $this->authorize('reject', AbusiveReport::class);
 
+        $modelType = $request->validated('model_type');
+        $modelId = $request->validated('model_id');
+
+        if (! is_string($modelType) || ! is_numeric($modelId)) {
+            abort(400);
+        }
+
         $this->rejectAction->execute(
-            $request->validated('model_type'),
-            (int) $request->validated('model_id')
+            $modelType,
+            (int) $modelId
         );
 
         return $this->sendSuccess(null, 'Laporan berhasil ditolak.');
@@ -109,10 +135,19 @@ class AbusiveReportController extends BaseController
     public function myReports(Request $request): JsonResponse
     {
         $user = $request->user();
-        $perPage = (int) $request->input('limit', 15);
+        if (! $user) {
+            abort(401);
+        }
+
+        $perPage = $request->integer('limit', 15);
         $perPage = max(1, min($perPage, 100));
 
-        $paginator = $this->queryService->getUserReports($user->id, $perPage);
+        $userId = $user->getAuthIdentifier();
+        if (! is_numeric($userId)) {
+            abort(401);
+        }
+
+        $paginator = $this->queryService->getUserReports((int) $userId, $perPage);
 
         return $this->sendPaginated(
             $paginator,

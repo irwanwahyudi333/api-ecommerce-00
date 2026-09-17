@@ -12,7 +12,8 @@ final class UpdateAddressAction
 {
     public function execute(Address $address, AddressData $data): Address
     {
-        return DB::transaction(function () use ($address, $data) {
+        /** @var Address $result */
+        $result = DB::transaction(function () use ($address, $data) {
             // Jika alamat di-set sebagai default, unset default yang lain
             if ($data->default) {
                 Address::where('customer_id', $address->customer_id)
@@ -22,7 +23,9 @@ final class UpdateAddressAction
 
             $address->update($data->toArray());
 
-            return $address->fresh();
+            return $address->refresh();
         });
+
+        return $result;
     }
 }

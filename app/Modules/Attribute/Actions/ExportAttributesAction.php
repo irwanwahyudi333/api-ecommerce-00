@@ -16,13 +16,16 @@ final class ExportAttributesAction
     public function execute(int $shopId, User $user): array
     {
         $attributes = Attribute::where('shop_id', $shopId)->with('values')->get();
+        /** @var array<int, array<string, mixed>> $list */
         $list = $attributes->toArray();
         if (empty($list)) {
             return [];
         }
         foreach ($list as &$attr) {
             if (isset($attr['values']) && is_array($attr['values'])) {
-                $attr['values'] = implode(',', Arr::pluck($attr['values'], 'value'));
+                /** @var array<int|string, mixed> $plucked */
+                $plucked = Arr::pluck($attr['values'], 'value');
+                $attr['values'] = implode(',', array_map(fn($v) => (is_scalar($v) || $v === null) ? (string) $v : '', $plucked));
             }
             unset($attr['id'], $attr['created_at'], $attr['updated_at'], $attr['slug'], $attr['translated_languages']);
         }

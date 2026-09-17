@@ -14,7 +14,7 @@ class CreateAttributeAction
     {
         $attributes = array_filter([
             'name' => $data->name,
-            'slug' => $data->slug ?? Str::slug($data->name),
+            'slug' => $data->slug ?? Str::slug((string) $data->name),
             'shop_id' => $data->shop_id,
             'language' => $data->language,
         ], fn ($v) => ! is_null($v));

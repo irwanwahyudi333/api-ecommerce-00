@@ -7,9 +7,16 @@ namespace App\Modules\Attribute\Http\Resources;
 use App\Modules\AttributeValue\Http\Resources\AttributeValueResource;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/**
+ * @property \App\Models\Attribute $resource
+ */
 class AttributeResource extends JsonResource
 {
-    public function toArray($request)
+    /**
+     * @param \Illuminate\Http\Request $request
+     * @return array<string, mixed>
+     */
+    public function toArray($request): array
     {
         return [
             'id' => $this->resource->id,

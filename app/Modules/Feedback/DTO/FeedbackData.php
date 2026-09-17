@@ -14,6 +14,9 @@ final class FeedbackData
         public readonly ?int $user_id,
     ) {}
 
+    /**
+     * @param  array<string, mixed>  $data
+     */
     public static function fromRequest(array $data, ?int $userId = null): self
     {
         return new self(
@@ -25,6 +28,9 @@ final class FeedbackData
         );
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function toArray(): array
     {
         return array_filter([

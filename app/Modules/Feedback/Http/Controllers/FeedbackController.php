@@ -6,6 +6,7 @@ namespace App\Modules\Feedback\Http\Controllers;
 
 use App\Http\Controllers\BaseController;
 use App\Models\Feedback;
+use App\Models\User;
 use App\Modules\Feedback\Actions\CreateFeedbackAction;
 use App\Modules\Feedback\Actions\DeleteFeedbackAction;
 use App\Modules\Feedback\Actions\ToggleFeedbackAction;
@@ -13,6 +14,8 @@ use App\Modules\Feedback\DTO\FeedbackData;
 use App\Modules\Feedback\Http\Requests\FeedbackCreateRequest;
 use App\Modules\Feedback\Http\Resources\FeedbackResource;
 use App\Modules\Feedback\Services\FeedbackQueryService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class FeedbackController extends BaseController
 {
@@ -23,7 +26,7 @@ class FeedbackController extends BaseController
         private readonly ToggleFeedbackAction $toggleFeedbackAction
     ) {}
 
-    public function index()
+    public function index(): AnonymousResourceCollection
     {
         $this->authorize('viewAny', Feedback::class);
         $feedbacks = $this->feedbackQueryService->getFeedbackWithUser();
@@ -31,10 +34,12 @@ class FeedbackController extends BaseController
         return FeedbackResource::collection($feedbacks);
     }
 
-    public function store(FeedbackCreateRequest $request)
+    public function store(FeedbackCreateRequest $request): FeedbackResource
     {
         $this->authorize('create', Feedback::class);
-        $userId = (int) $request->user()->id;
+        /** @var User $user */
+        $user = $request->user();
+        $userId = (int) $user->id;
         $data = FeedbackData::fromRequest($request->validated(), $userId);
 
         $target = $this->feedbackQueryService->findTargetModel($data->model_type, $data->model_id);
@@ -58,7 +63,7 @@ class FeedbackController extends BaseController
         return new FeedbackResource($feedback);
     }
 
-    public function show(int $id)
+    public function show(int $id): FeedbackResource
     {
         $feedback = $this->feedbackQueryService->findFeedbackOrFail($id);
         $this->authorize('view', $feedback);
@@ -66,11 +71,11 @@ class FeedbackController extends BaseController
         return new FeedbackResource($feedback);
     }
 
-    public function destroy(int $id)
+    public function destroy(int $id): JsonResponse
     {
         $feedback = $this->feedbackQueryService->findFeedbackOrFail($id);
         $this->authorize('delete', $feedback);
-        $this->deleteFeedbackAction->execute($id);
+        $this->deleteFeedbackAction->execute($feedback);
 
         return $this->sendSuccess(null, 'Feedback deleted successfully');
     }

@@ -19,15 +19,18 @@ class AttachmentResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        /** @var Attachment $attachment */
+        $attachment = $this->resource;
+
         /** @var Media|null $media */
-        $media = $this->resource->getMedia()->first();
+        $media = $attachment->getMedia()->first();
         $isImage = $media ? strpos($media->mime_type, 'image/') !== false : false;
 
         return [
-            'id' => $this->resource->id,
+            'id' => $attachment->id,
             'thumbnail' => $media && $isImage ? $media->getUrl('thumbnail') : '',
             'original' => $media ? $media->getUrl() : null,
-            'created_at' => $this->resource->created_at?->toISOString(),
+            'created_at' => $attachment->created_at?->toISOString(),
         ];
     }
 }

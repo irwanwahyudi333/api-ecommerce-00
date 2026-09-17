@@ -6,6 +6,10 @@ namespace App\Modules\Address\DTO;
 
 final class AddressData
 {
+    /**
+     * @param  array<string, mixed>  $address
+     * @param  array<string, mixed>|null  $location
+     */
     public function __construct(
         public readonly string $title,
         public readonly string $type,
@@ -15,7 +19,7 @@ final class AddressData
     ) {}
 
     /**
-     * @param  array{title:string, type:string, default?:bool, address:array, location?:array|null}  $data
+     * @param  array{title:string, type:string, default?:bool, address:array<string, mixed>, location?:array<string, mixed>|null}  $data
      */
     public static function fromRequest(array $data): self
     {

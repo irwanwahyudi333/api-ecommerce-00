@@ -28,6 +28,7 @@ class AnalyticsController extends BaseController
     {
         $this->authorize('viewAny', User::class);
 
+        /** @var User $user */
         $user = $request->user();
         $data = $this->analyticsQueryService->getAnalytics($user);
 
@@ -41,11 +42,24 @@ class AnalyticsController extends BaseController
     {
         $this->authorize('viewAny', User::class);
 
+        /** @var User $user */
         $user = $request->user();
+        /** @var string $language */
         $language = $request->input('language', config('shop.default_language', 'id'));
-        $typeId = $this->analyticsQueryService->resolveTypeId($request->input('type_id'), $request->input('type_slug'), $language);
-        $shopId = $request->input('shop_id');
-        $limit = (int) $request->input('limit', 10);
+        /** @var scalar|null $typeIdInput */
+        $typeIdInput = $request->input('type_id');
+        $typeId = $typeIdInput !== null ? (int) $typeIdInput : null;
+        /** @var scalar|null $typeSlugInput */
+        $typeSlugInput = $request->input('type_slug');
+        $typeSlug = $typeSlugInput !== null ? (string) $typeSlugInput : null;
+
+        $typeId = $this->analyticsQueryService->resolveTypeId($typeId, $typeSlug, $language);
+        /** @var scalar|null $shopIdInput */
+        $shopIdInput = $request->input('shop_id');
+        $shopId = $shopIdInput !== null ? (int) $shopIdInput : null;
+        /** @var scalar|null $limitInput */
+        $limitInput = $request->input('limit', 10);
+        $limit = (int) $limitInput;
 
         $products = $this->analyticsQueryService->getLowStockProducts(
             $user,
@@ -65,9 +79,13 @@ class AnalyticsController extends BaseController
     {
         $this->authorize('viewAny', User::class);
 
+        /** @var User $user */
         $user = $request->user();
+        /** @var string $language */
         $language = $request->input('language', config('shop.default_language', 'id'));
-        $limit = (int) $request->input('limit', 15);
+        /** @var scalar|null $limitInput */
+        $limitInput = $request->input('limit', 15);
+        $limit = (int) $limitInput;
 
         $data = $this->analyticsQueryService->categoryWiseProductCount($user, $language, $limit);
 
@@ -81,9 +99,13 @@ class AnalyticsController extends BaseController
     {
         $this->authorize('viewAny', User::class);
 
+        /** @var User $user */
         $user = $request->user();
+        /** @var string $language */
         $language = $request->input('language', config('shop.default_language', 'id'));
-        $limit = (int) $request->input('limit', 15);
+        /** @var scalar|null $limitInput */
+        $limitInput = $request->input('limit', 15);
+        $limit = (int) $limitInput;
 
         $data = $this->analyticsQueryService->categoryWiseProductSales($user, $language, $limit);
 
@@ -97,9 +119,13 @@ class AnalyticsController extends BaseController
     {
         $this->authorize('viewAny', User::class);
 
+        /** @var User $user */
         $user = $request->user();
+        /** @var string $language */
         $language = $request->input('language', config('shop.default_language', 'id'));
-        $limit = (int) $request->input('limit', 10);
+        /** @var scalar|null $limitInput */
+        $limitInput = $request->input('limit', 10);
+        $limit = (int) $limitInput;
 
         $products = $this->analyticsQueryService->topRatedProducts($user, $language, $limit);
 

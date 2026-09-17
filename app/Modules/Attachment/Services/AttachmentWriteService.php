@@ -14,6 +14,10 @@ final class AttachmentWriteService
 {
     public function __construct(private readonly CreateAttachmentAction $createAction) {}
 
+    /**
+     * @param AttachmentData $data
+     * @return array<int, mixed>
+     */
     public function upload(AttachmentData $data): array
     {
         return $this->createAction->execute($data);
@@ -22,11 +26,12 @@ final class AttachmentWriteService
     public function delete(int $id): bool
     {
         $attachment = Attachment::findOrFail($id);
-        if ($attachment->path && Storage::disk('public')->exists($attachment->path)) {
-            Storage::disk('public')->delete($attachment->path);
+        $path = $attachment->getAttribute('path');
+        if (is_string($path) && Storage::disk('public')->exists($path)) {
+            Storage::disk('public')->delete($path);
         }
 
-        return $attachment->delete();
+        return $attachment->delete() === true;
     }
 
     public function deleteByUrl(string $url): bool

@@ -15,6 +15,9 @@ class ToggleFeedbackAction
             'negative' => $negative ? true : null,
         ]);
 
-        return $feedback->fresh();
+        /** @var Feedback $fresh */
+        $fresh = $feedback->fresh();
+
+        return $fresh;
     }
 }

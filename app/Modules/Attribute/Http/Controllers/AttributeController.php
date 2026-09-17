@@ -12,6 +12,8 @@ use App\Modules\Attribute\Http\Resources\AttributeResource;
 use App\Modules\Attribute\Services\AttributeQueryService;
 use App\Modules\Attribute\Services\AttributeWriteService;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 use Illuminate\Support\Facades\Cache;
 
 class AttributeController extends BaseController
@@ -24,12 +26,13 @@ class AttributeController extends BaseController
     /**
      * GET /attributes - List attributes
      */
-    public function index(Request $request)
+    public function index(Request $request): JsonResponse
     {
         $language = $request->language ?? config('shop.default_language', 'id');
-        $cacheKey = "attributes_{$language}";
+        $languageStr = is_scalar($language) ? (string) $language : '';
+        $cacheKey = "attributes_{$languageStr}";
         $attributes = Cache::remember($cacheKey, 3600, function () use ($language) {
-            return $this->attributeQueryService->getAttributesByLanguage($language);
+            return $this->attributeQueryService->getAttributesByLanguage(is_scalar($language) ? (string) $language : '');
         });
 
         return $this->sendSuccess(
@@ -41,7 +44,7 @@ class AttributeController extends BaseController
     /**
      * POST /attributes - Create attribute
      */
-    public function store(AttributeRequest $request)
+    public function store(AttributeRequest $request): JsonResponse
     {
         $this->authorize('create', Attribute::class);
 
@@ -59,10 +62,10 @@ class AttributeController extends BaseController
     /**
      * GET /attributes/{identifier} - Get attribute by ID or slug
      */
-    public function show(Request $request, string $identifier)
+    public function show(Request $request, string $identifier): JsonResponse
     {
         $language = $request->language ?? config('shop.default_language', 'id');
-        $attribute = $this->attributeQueryService->getAttributeByIdOrSlug($identifier, $language);
+        $attribute = $this->attributeQueryService->getAttributeByIdOrSlug($identifier, is_scalar($language) ? (string) $language : '');
 
         return $this->sendSuccess(
             new AttributeResource($attribute),
@@ -73,9 +76,9 @@ class AttributeController extends BaseController
     /**
      * PUT /attributes/{id} - Update attribute
      */
-    public function update(AttributeRequest $request, int $id)
+    public function update(AttributeRequest $request, int $id): JsonResponse
     {
-        $attribute = $this->attributeQueryService->getAttributeByIdOrSlug($id, $request->language ?? config('shop.default_language', 'id'));
+        $attribute = $this->attributeQueryService->getAttributeByIdOrSlug((string) $id, is_scalar($request->language ?? config('shop.default_language', 'id')) ? (string) ($request->language ?? config('shop.default_language', 'id')) : '');
         $this->authorize('update', $attribute);
         $data = AttributeData::fromRequest($request->validated());
         $updated = $this->attributeWriteService->updateAttribute($attribute, $data);
@@ -90,9 +93,9 @@ class AttributeController extends BaseController
     /**
      * DELETE /attributes/{id} - Delete attribute
      */
-    public function destroy(Request $request, int $id)
+    public function destroy(Request $request, int $id): JsonResponse
     {
-        $attribute = $this->attributeQueryService->getAttributeByIdOrSlug($id, $request->language ?? config('shop.default_language', 'id'));
+        $attribute = $this->attributeQueryService->getAttributeByIdOrSlug((string) $id, is_scalar($request->language ?? config('shop.default_language', 'id')) ? (string) ($request->language ?? config('shop.default_language', 'id')) : '');
         $this->authorize('delete', $attribute);
 
         $language = $attribute->language;
@@ -105,11 +108,13 @@ class AttributeController extends BaseController
     /**
      * GET /attributes/export/{shopId} - Export attributes as CSV
      */
-    public function exportAttributes(Request $request, int $shopId)
+    public function exportAttributes(Request $request, int $shopId): StreamedResponse
     {
         $this->authorize('export', [Attribute::class, $shopId]);
 
-        $list = $this->attributeQueryService->exportAttributes($shopId);
+        $user = $request->user();
+        if (!$user) { return response()->stream(fn()=>null, 401); }
+        $list = $this->attributeQueryService->exportAttributes($shopId, $user);
         $filename = 'attributes-for-shop-id-'.$shopId.'.csv';
         $headers = [
             'Content-Type' => 'text/csv',
@@ -118,13 +123,16 @@ class AttributeController extends BaseController
 
         $callback = function () use ($list) {
             $handle = fopen('php://output', 'w');
-            if (! empty($list)) {
-                fputcsv($handle, array_keys($list[0]));
-                foreach ($list as $row) {
-                    fputcsv($handle, $row);
+            if ($handle !== false) {
+                if (! empty($list)) {
+                    fputcsv($handle, array_keys($list[0]));
+                    foreach ($list as $row) {
+                        /** @var array<int|string, bool|float|int|string|null> $row */
+                        fputcsv($handle, $row);
+                    }
                 }
+                fclose($handle);
             }
-            fclose($handle);
         };
 
         return response()->stream($callback, 200, $headers);
@@ -133,30 +141,29 @@ class AttributeController extends BaseController
     /**
      * POST /attributes/import - Import attributes from CSV
      */
-    public function importAttributes(Request $request)
+    public function importAttributes(Request $request): JsonResponse
     {
         $this->authorize('import', [Attribute::class, $request->shop_id]);
 
         $requestFile = $request->file('csv');
-        if (! $requestFile) {
+        if (! $requestFile instanceof \Illuminate\Http\UploadedFile) {
             return $this->sendError('CSV file is required', 422);
-        }
-
-        $path = $requestFile->store('csv-files', 'public');
-        $fullPath = storage_path('app/public/'.$path);
-        $data = $this->csvToArray($fullPath);
-
-        if (empty($data)) {
-            return $this->sendError('CSV file is empty or invalid', 422);
         }
 
         try {
             // Ambil shop_id dan user dari request
-            $shopId = (int) $request->shop_id;
+            $shopId = (int) (is_scalar($request->shop_id) ? $request->shop_id : 0);
+            /** @var \App\Models\User|null $user */
             $user = $request->user();
+            if (!$user) {
+                return $this->sendError('Unauthorized', 401);
+            }
 
-            $this->attributeWriteService->importAttributes($data, $shopId, $user);
-            Cache::forget('attributes_'.config('shop.default_language', 'id'));
+            $this->attributeWriteService->importAttributes($requestFile, $shopId, $user);
+            
+            $defaultLang = config('shop.default_language', 'id');
+            $defaultLangStr = is_scalar($defaultLang) ? (string) $defaultLang : 'id';
+            Cache::forget('attributes_'.$defaultLangStr);
 
             return $this->sendSuccess(null, 'Import successful');
         } catch (\Exception $e) {
@@ -164,30 +171,5 @@ class AttributeController extends BaseController
         }
     }
 
-    /**
-     * Helper to convert CSV to array
-     */
-    private function csvToArray(string $filename, string $delimiter = ','): array
-    {
-        if (! file_exists($filename) || ! is_readable($filename)) {
-            return [];
-        }
 
-        $header = null;
-        $data = [];
-        if (($handle = fopen($filename, 'r')) !== false) {
-            while (($row = fgetcsv($handle, 0, $delimiter)) !== false) {
-                if (! $header) {
-                    $header = $row;
-                } else {
-                    if (count($header) === count($row)) {
-                        $data[] = array_combine($header, $row);
-                    }
-                }
-            }
-            fclose($handle);
-        }
-
-        return $data;
-    }
 }

@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Modules\Analytics\Services;
 
 use App\Enums\Permission;
+use App\Models\Product;
 use App\Models\Shop;
 use App\Models\Type;
 use App\Models\User;
 use Carbon\Carbon;
-use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Facades\Cache;
 
@@ -26,7 +26,7 @@ final class AnalyticsQueryService
      *
      * @return array<string, mixed>
      */
-    public function getAnalytics(Authenticatable $user, int $cacheTtl = 300): array
+    public function getAnalytics(User $user, int $cacheTtl = 300): array
     {
         $cacheKey = 'analytics_dashboard_'.$user->id;
 
@@ -45,13 +45,13 @@ final class AnalyticsQueryService
      *     totalOrders: int,
      *     newCustomers: int,
      *     totalYearSaleByMonth: array<int, array{month: string, total: float}>,
-     *     todayTotalOrderByStatus: array,
-     *     weeklyTotalOrderByStatus: array,
-     *     monthlyTotalOrderByStatus: array,
-     *     yearlyTotalOrderByStatus: array,
+     *     todayTotalOrderByStatus: array<string, int>,
+     *     weeklyTotalOrderByStatus: array<string, int>,
+     *     monthlyTotalOrderByStatus: array<string, int>,
+     *     yearlyTotalOrderByStatus: array<string, int>,
      * }
      */
-    private function buildAnalytics(Authenticatable $user): array
+    private function buildAnalytics(User $user): array
     {
         $shopIds = $this->getShopIdsForUser($user);
         $isSuperAdmin = $user->hasPermissionTo(Permission::SUPER_ADMIN->value);
@@ -98,7 +98,7 @@ final class AnalyticsQueryService
     /**
      * @return int[]|null (null = semua toko, [] = tidak ada akses)
      */
-    private function getShopIdsForUser(?Authenticatable $user): ?array
+    private function getShopIdsForUser(?User $user): ?array
     {
         if (! $user) {
             return [];
@@ -109,7 +109,10 @@ final class AnalyticsQueryService
         }
 
         if ($user->hasPermissionTo(Permission::STORE_OWNER->value)) {
-            return $user->shops()->pluck('shops.id')->toArray();
+            /** @var array<int|string> $ids */
+            $ids = $user->shops()->pluck('shops.id')->toArray();
+
+            return array_map('intval', $ids);
         }
 
         if ($user->hasPermissionTo(Permission::STAFF->value)) {
@@ -136,8 +139,11 @@ final class AnalyticsQueryService
         return null;
     }
 
+    /**
+     * @return EloquentCollection<int, Product>
+     */
     public function getLowStockProducts(
-        Authenticatable $user,
+        User $user,
         string $language,
         ?int $typeId = null,
         ?int $shopId = null,
@@ -146,17 +152,26 @@ final class AnalyticsQueryService
         return $this->productService->getLowStockProducts($user, $language, $typeId, $shopId, $limit);
     }
 
-    public function categoryWiseProductCount(Authenticatable $user, string $language, int $limit = 15): array
+    /**
+     * @return array<int, array{category_id: int, category_name: string, shop_name: string, product_count: int}>
+     */
+    public function categoryWiseProductCount(User $user, string $language, int $limit = 15): array
     {
         return $this->productService->getCategoryWiseProductCount($user, $language, $limit);
     }
 
-    public function categoryWiseProductSales(Authenticatable $user, string $language, int $limit = 15): array
+    /**
+     * @return array<int, array{category_id: int, category_name: string, total_sales: float}>
+     */
+    public function categoryWiseProductSales(User $user, string $language, int $limit = 15): array
     {
         return $this->productService->getCategoryWiseProductSales($user, $language, $limit);
     }
 
-    public function topRatedProducts(Authenticatable $user, string $language, int $limit = 10): EloquentCollection
+    /**
+     * @return EloquentCollection<int, Product>
+     */
+    public function topRatedProducts(User $user, string $language, int $limit = 10): EloquentCollection
     {
         return $this->productService->getTopRatedProducts($user, $language, $limit);
     }

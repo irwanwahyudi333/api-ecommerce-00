@@ -22,7 +22,10 @@ final class FeedbackQueryService
             'Question' => Question::class,
         ];
 
-        return $map[$type] ?? 'App\\Models\\'.$type;
+        /** @var class-string $class */
+        $class = $map[$type] ?? 'App\\Models\\'.$type;
+
+        return $class;
     }
 
     public function findTargetModel(string $type, int $id): Model
@@ -34,11 +37,12 @@ final class FeedbackQueryService
 
     public function getExistingFeedback(Model $target, int $userId): ?Feedback
     {
+        /** @phpstan-ignore method.notFound */
         return $target->feedbacks()->where('user_id', $userId)->first();
     }
 
     /**
-     * @return LengthAwarePaginator<Feedback>
+     * @return LengthAwarePaginator<int, Feedback>
      */
     public function getFeedbackWithUser(int $perPage = 15): LengthAwarePaginator
     {

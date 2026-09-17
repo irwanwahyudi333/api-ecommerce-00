@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphMany;
+use Illuminate\Database\Eloquent\Relations\MorphOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Question extends Model
@@ -38,12 +40,12 @@ class Question extends Model
         return $this->belongsTo(Shop::class, 'shop_id');
     }
 
-    public function feedbacks()
+    public function feedbacks(): MorphMany
     {
         return $this->morphMany(Feedback::class, 'model');
     }
 
-    public function abusive_reports()
+    public function abusive_reports(): MorphOne
     {
         return $this->morphOne(AbusiveReport::class, 'model');
     }

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Modules\AbusiveReport\DTO;
 
+use App\Models\Question;
+use App\Models\Review;
 use App\Modules\AbusiveReport\Enums\AbusiveReportType;
 
 final readonly class AbusiveReportData
@@ -16,20 +18,28 @@ final readonly class AbusiveReportData
     ) {}
 
     /**
-     * @param  array{model_id:int, model_type:string, message:string}  $data
+     * @param  array<string, mixed>  $data
      */
     public static function fromRequest(array $data, int $userId): self
     {
+        $modelId = $data['model_id'] ?? null;
+        $modelType = $data['model_type'] ?? null;
+        $message = $data['message'] ?? null;
+
+        if (! is_numeric($modelId) || ! is_string($modelType) || ! is_string($message)) {
+            throw new \InvalidArgumentException('Invalid data');
+        }
+
         return new self(
-            model_id: $data['model_id'],
-            model_type: $data['model_type'],
-            message: $data['message'],
+            model_id: (int) $modelId,
+            model_type: $modelType,
+            message: $message,
             user_id: $userId,
         );
     }
 
     /**
-     * @return class-string
+     * @return class-string<Question|Review>
      */
     public function getModelClass(): string
     {

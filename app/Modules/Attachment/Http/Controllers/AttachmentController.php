@@ -11,7 +11,9 @@ use App\Modules\Attachment\Http\Requests\AttachmentRequest;
 use App\Modules\Attachment\Http\Resources\AttachmentResource;
 use App\Modules\Attachment\Services\AttachmentQueryService;
 use App\Modules\Attachment\Services\AttachmentWriteService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class AttachmentController extends BaseController
 {
@@ -20,7 +22,7 @@ class AttachmentController extends BaseController
         private readonly AttachmentWriteService $attachmentWriteService
     ) {}
 
-    public function index(Request $request)
+    public function index(Request $request): AnonymousResourceCollection
     {
         $this->authorize('viewAny', Attachment::class);
         $attachments = $this->attachmentQueryService->getAll();
@@ -28,7 +30,7 @@ class AttachmentController extends BaseController
         return AttachmentResource::collection($attachments);
     }
 
-    public function store(AttachmentRequest $request)
+    public function store(AttachmentRequest $request): JsonResponse
     {
         $this->authorize('create', Attachment::class);
         $data = AttachmentData::fromRequest($request->validated());
@@ -37,7 +39,7 @@ class AttachmentController extends BaseController
         return response()->json($results);
     }
 
-    public function show(int $id)
+    public function show(int $id): AttachmentResource
     {
         $attachment = $this->attachmentQueryService->find($id);
         $this->authorize('view', $attachment);
@@ -45,7 +47,7 @@ class AttachmentController extends BaseController
         return new AttachmentResource($attachment);
     }
 
-    public function destroy(int $id)
+    public function destroy(int $id): JsonResponse
     {
         $this->authorize('delete', Attachment::class);
         $this->attachmentWriteService->delete($id);
