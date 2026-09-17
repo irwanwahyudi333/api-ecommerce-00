@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Attachment\Http\Requests;
 
 use App\Modules\Attachment\DTO\AttachmentData;
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class AttachmentRequest extends FormRequest
@@ -15,7 +16,7 @@ class AttachmentRequest extends FormRequest
     }
 
     /**
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     * @return array<string, ValidationRule|array<mixed>|string>
      */
     public function rules(): array
     {

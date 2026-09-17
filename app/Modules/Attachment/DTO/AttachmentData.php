@@ -16,7 +16,7 @@ final class AttachmentData
     ) {}
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public static function fromRequest(array $data): self
     {

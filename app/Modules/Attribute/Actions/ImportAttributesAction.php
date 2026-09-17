@@ -60,6 +60,7 @@ final class ImportAttributesAction
 
     /**
      * Helper to convert CSV to array
+     *
      * @return array<int, array<string, string>>
      */
     private function csvToArray(string $filename, string $delimiter = ','): array

@@ -15,7 +15,6 @@ final class AttachmentWriteService
     public function __construct(private readonly CreateAttachmentAction $createAction) {}
 
     /**
-     * @param AttachmentData $data
      * @return array<int, mixed>
      */
     public function upload(AttachmentData $data): array

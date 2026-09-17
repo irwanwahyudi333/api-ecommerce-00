@@ -6,15 +6,17 @@ namespace App\Modules\Attribute\Http\Controllers;
 
 use App\Http\Controllers\BaseController;
 use App\Models\Attribute;
+use App\Models\User;
 use App\Modules\Attribute\DTO\AttributeData;
 use App\Modules\Attribute\Http\Requests\AttributeRequest;
 use App\Modules\Attribute\Http\Resources\AttributeResource;
 use App\Modules\Attribute\Services\AttributeQueryService;
 use App\Modules\Attribute\Services\AttributeWriteService;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
-use Symfony\Component\HttpFoundation\StreamedResponse;
+use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class AttributeController extends BaseController
 {
@@ -113,7 +115,9 @@ class AttributeController extends BaseController
         $this->authorize('export', [Attribute::class, $shopId]);
 
         $user = $request->user();
-        if (!$user) { return response()->stream(fn()=>null, 401); }
+        if (! $user) {
+            return response()->stream(fn () => null, 401);
+        }
         $list = $this->attributeQueryService->exportAttributes($shopId, $user);
         $filename = 'attributes-for-shop-id-'.$shopId.'.csv';
         $headers = [
@@ -146,21 +150,21 @@ class AttributeController extends BaseController
         $this->authorize('import', [Attribute::class, $request->shop_id]);
 
         $requestFile = $request->file('csv');
-        if (! $requestFile instanceof \Illuminate\Http\UploadedFile) {
+        if (! $requestFile instanceof UploadedFile) {
             return $this->sendError('CSV file is required', 422);
         }
 
         try {
             // Ambil shop_id dan user dari request
             $shopId = (int) (is_scalar($request->shop_id) ? $request->shop_id : 0);
-            /** @var \App\Models\User|null $user */
+            /** @var User|null $user */
             $user = $request->user();
-            if (!$user) {
+            if (! $user) {
                 return $this->sendError('Unauthorized', 401);
             }
 
             $this->attributeWriteService->importAttributes($requestFile, $shopId, $user);
-            
+
             $defaultLang = config('shop.default_language', 'id');
             $defaultLangStr = is_scalar($defaultLang) ? (string) $defaultLang : 'id';
             Cache::forget('attributes_'.$defaultLangStr);
@@ -170,6 +174,4 @@ class AttributeController extends BaseController
             return $this->sendError($e->getMessage(), 400);
         }
     }
-
-
 }

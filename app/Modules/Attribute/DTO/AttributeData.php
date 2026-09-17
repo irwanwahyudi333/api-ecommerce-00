@@ -16,13 +16,13 @@ class AttributeData
     ) {}
 
     /**
-     * @param array<string, mixed> $data
+     * @param  array<string, mixed>  $data
      */
     public static function fromRequest(array $data): self
     {
         $defaultLang = config('shop.default_language', 'id');
         $defaultLangStr = is_scalar($defaultLang) ? (string) $defaultLang : 'id';
-        
+
         /** @var array<int, array<string, mixed>>|null $values */
         $values = $data['values'] ?? null;
 

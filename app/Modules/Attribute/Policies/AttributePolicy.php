@@ -6,6 +6,7 @@ namespace App\Modules\Attribute\Policies;
 
 use App\Enums\Permission;
 use App\Models\Attribute;
+use App\Models\Shop;
 use App\Models\User;
 
 class AttributePolicy
@@ -33,8 +34,9 @@ class AttributePolicy
         }
 
         if ($user->hasPermissionTo(Permission::STORE_OWNER->value)) {
-            /** @var \App\Models\Shop|null $shop */
+            /** @var Shop|null $shop */
             $shop = $attribute->shop;
+
             return $shop && $shop->owner_id === $user->id;
         }
 

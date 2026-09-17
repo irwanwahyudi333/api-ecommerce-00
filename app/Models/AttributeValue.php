@@ -15,7 +15,7 @@ use Illuminate\Support\Str;
  * @property string|null $meta
  * @property string $language
  * @property array $translated_languages
- * @property \App\Models\Attribute|null $attribute
+ * @property Attribute|null $attribute
  */
 class AttributeValue extends Model
 {

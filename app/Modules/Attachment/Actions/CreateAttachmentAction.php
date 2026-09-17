@@ -11,7 +11,6 @@ use Illuminate\Support\Facades\Storage;
 class CreateAttachmentAction
 {
     /**
-     * @param AttachmentData $data
      * @return array<int, array<string, mixed>>
      */
     public function execute(AttachmentData $data): array
@@ -19,8 +18,8 @@ class CreateAttachmentAction
         $results = [];
         foreach ($data->files as $file) {
             $path = $file->store('attachments', 'public');
-            
-            if (!is_string($path)) {
+
+            if (! is_string($path)) {
                 continue;
             }
 

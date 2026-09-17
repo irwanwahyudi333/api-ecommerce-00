@@ -5,12 +5,13 @@ declare(strict_types=1);
 namespace App\Modules\Attribute\Services;
 
 use App\Models\Attribute;
+use App\Models\User;
 use App\Modules\Attribute\Actions\CreateAttributeAction;
 use App\Modules\Attribute\Actions\DeleteAttributeAction;
 use App\Modules\Attribute\Actions\ImportAttributesAction;
 use App\Modules\Attribute\Actions\UpdateAttributeAction;
 use App\Modules\Attribute\DTO\AttributeData;
-use App\Models\User;
+use Illuminate\Http\UploadedFile;
 
 final class AttributeWriteService
 {
@@ -36,7 +37,7 @@ final class AttributeWriteService
         $this->deleteAttributeAction->execute($attribute);
     }
 
-    public function importAttributes(\Illuminate\Http\UploadedFile $file, int $shopId, User $user): void
+    public function importAttributes(UploadedFile $file, int $shopId, User $user): void
     {
         $this->importAttributesAction->execute($file, $shopId, $user);
     }

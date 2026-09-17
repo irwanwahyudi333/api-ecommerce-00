@@ -10,7 +10,6 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 final class AttachmentQueryService
 {
     /**
-     * @param int $perPage
      * @return LengthAwarePaginator<int, Attachment>
      */
     public function getAll(int $perPage = 15): LengthAwarePaginator
