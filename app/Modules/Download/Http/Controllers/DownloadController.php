@@ -6,28 +6,51 @@ namespace App\Modules\Download\Http\Controllers;
 
 use App\Http\Controllers\BaseController;
 use App\Models\DigitalFile;
+use App\Models\DownloadToken;
 use App\Models\OrderedFile;
+use App\Models\Product;
+use App\Models\Variation;
+use App\Modules\Download\Actions\GenerateDownloadTokenAction;
+use App\Modules\Download\Actions\GetFileByTokenAction;
 use App\Modules\Download\Http\Requests\GenerateDownloadUrlRequest;
 use App\Modules\Download\Http\Resources\DownloadableFileResource;
 use App\Modules\Download\Services\DownloadQueryService;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class DownloadController extends BaseController
 {
-    public function __construct(private DownloadQueryService $downloadQueryService) {}
+    public function __construct(
+        private DownloadQueryService $downloadQueryService,
+        private GenerateDownloadTokenAction $generateDownloadTokenAction,
+        private GetFileByTokenAction $getFileByTokenAction
+    ) {}
 
-    public function fetchDownloadableFiles(Request $request)
+    public function fetchDownloadableFiles(Request $request): AnonymousResourceCollection
     {
         $user = $request->user();
+        if (! $user) {
+            abort(401);
+        }
         $this->authorize('viewAny', OrderedFile::class);
 
-        $limit = (int) ($request->limit ?? 15);
+        $limit = is_numeric($request->limit) ? (int) $request->limit : 15;
+
+        /** @var Builder<OrderedFile> $query */
         $query = $this->downloadQueryService->getDownloadableFilesQuery($user);
 
         // Load morph relations: file.fileable (product/variation with shop)
-        $query->with(['file.fileable' => function ($q) {
-            $q->with('shop');
+        $query->with(['file.fileable' => function ($morphTo) {
+            /** @var MorphTo<Model, DigitalFile> $morphTo */
+            $morphTo->morphWith([
+                Product::class => ['shop'],
+                Variation::class => ['product'],
+            ]);
         }]);
 
         $files = $query->paginate($limit);
@@ -35,31 +58,39 @@ class DownloadController extends BaseController
         return DownloadableFileResource::collection($files);
     }
 
-    public function generateDownloadableUrl(GenerateDownloadUrlRequest $request)
+    public function generateDownloadableUrl(GenerateDownloadUrlRequest $request): JsonResponse
     {
         $user = $request->user();
-        $digitalFileId = $request->digital_file_id;
+        if (! $user) {
+            abort(401);
+        }
+
+        $digitalFileId = is_numeric($request->digital_file_id) ? (int) $request->digital_file_id : 0;
 
         $digitalFile = DigitalFile::findOrFail($digitalFileId);
         $this->authorize('download', $digitalFile);
 
-        $token = $this->downloadQueryService->generateDownloadToken($digitalFileId, $user->id);
+        /** @var DownloadToken $token */
+        $token = $this->generateDownloadTokenAction->execute($digitalFileId, $user->id);
 
         return response()->json([
             'url' => route('download_url.token', ['token' => $token->token]),
         ]);
     }
 
-    public function downloadFile(string $token)
+    public function downloadFile(string $token): mixed
     {
-        $digitalFile = $this->downloadQueryService->getFileByToken($token);
+        $digitalFile = $this->getFileByTokenAction->execute($token);
         if (! $digitalFile) {
-            throw new HttpException(404, config('notice.TOKEN_NOT_FOUND', 'Token not found'));
+            $msg1 = config('notice.TOKEN_NOT_FOUND', 'Token not found');
+            throw new HttpException(404, is_string($msg1) ? $msg1 : 'Token not found');
         }
 
-        $mediaItem = $this->downloadQueryService->getMediaItem($digitalFile->attachment_id);
+        $attachmentId = (int) $digitalFile->attachment_id;
+        $mediaItem = $this->downloadQueryService->getMediaItem($attachmentId);
         if (! $mediaItem) {
-            throw new HttpException(404, config('notice.NOT_FOUND', 'File not found'));
+            $msg2 = config('notice.NOT_FOUND', 'File not found');
+            throw new HttpException(404, is_string($msg2) ? $msg2 : 'File not found');
         }
 
         // Return file download response (Spatie MediaLibrary)

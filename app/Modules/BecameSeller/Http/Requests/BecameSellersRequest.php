@@ -2,6 +2,7 @@
 
 namespace App\Modules\BecameSeller\Http\Requests;
 
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class BecameSellersRequest extends FormRequest
@@ -11,6 +12,9 @@ class BecameSellersRequest extends FormRequest
         return true;
     }
 
+    /**
+     * @return array<string, ValidationRule|array<mixed>|string>
+     */
     public function rules(): array
     {
         return [

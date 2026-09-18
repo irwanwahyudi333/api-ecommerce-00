@@ -4,8 +4,14 @@ declare(strict_types=1);
 
 namespace App\Modules\Coupon\DTO;
 
+/**
+ * @phpstan-type CouponImage array<mixed, mixed>
+ */
 class CouponData
 {
+    /**
+     * @param  CouponImage|null  $image
+     */
     public function __construct(
         public readonly ?string $code,
         public readonly ?string $language,
@@ -22,25 +28,31 @@ class CouponData
         public readonly ?int $shop_id,
     ) {}
 
+    /**
+     * @param  array<string, mixed>  $data
+     */
     public static function fromRequest(array $data, ?int $userId = null): self
     {
         return new self(
-            code: $data['code'] ?? null,
-            language: $data['language'] ?? config('shop.default_language', 'id'),
-            description: $data['description'] ?? null,
-            image: $data['image'] ?? null,
-            type: $data['type'] ?? null,
-            amount: $data['amount'] ?? null,
-            minimum_cart_amount: $data['minimum_cart_amount'] ?? 0,
-            active_from: $data['active_from'] ?? null,
-            expire_at: $data['expire_at'] ?? null,
-            target: $data['target'] ?? null,
-            is_approve: $data['is_approve'] ?? null,
+            code: isset($data['code']) && is_string($data['code']) ? $data['code'] : null,
+            language: isset($data['language']) && is_string($data['language']) ? $data['language'] : (is_string(config('shop.default_language', 'id')) ? (string) config('shop.default_language', 'id') : 'id'),
+            description: isset($data['description']) && is_string($data['description']) ? $data['description'] : null,
+            image: isset($data['image']) && is_array($data['image']) ? $data['image'] : null,
+            type: isset($data['type']) && is_string($data['type']) ? $data['type'] : null,
+            amount: isset($data['amount']) && is_numeric($data['amount']) ? (float) $data['amount'] : null,
+            minimum_cart_amount: isset($data['minimum_cart_amount']) && is_numeric($data['minimum_cart_amount']) ? (float) $data['minimum_cart_amount'] : 0.0,
+            active_from: isset($data['active_from']) && is_string($data['active_from']) ? $data['active_from'] : null,
+            expire_at: isset($data['expire_at']) && is_string($data['expire_at']) ? $data['expire_at'] : null,
+            target: isset($data['target']) && is_string($data['target']) ? $data['target'] : null,
+            is_approve: isset($data['is_approve']) ? (bool) $data['is_approve'] : null,
             user_id: $userId,
-            shop_id: $data['shop_id'] ?? null,
+            shop_id: isset($data['shop_id']) && is_numeric($data['shop_id']) ? (int) $data['shop_id'] : null,
         );
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function toArray(): array
     {
         return array_filter([

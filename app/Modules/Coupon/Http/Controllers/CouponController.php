@@ -13,7 +13,9 @@ use App\Modules\Coupon\Http\Requests\CouponUpdateRequest;
 use App\Modules\Coupon\Http\Resources\CouponResource;
 use App\Modules\Coupon\Services\CouponQueryService;
 use App\Modules\Coupon\Services\CouponWriteService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class CouponController extends BaseController
 {
@@ -22,17 +24,17 @@ class CouponController extends BaseController
         private readonly CouponWriteService $couponWriteService
     ) {}
 
-    public function index(Request $request)
+    public function index(Request $request): AnonymousResourceCollection
     {
-
-        $limit = (int) ($request->limit ?? 15);
+        $limitInput = $request->input('limit', 15);
+        $limit = is_numeric($limitInput) ? (int) $limitInput : 15;
         $query = $this->couponQueryService->getCouponsQuery($request, $request->user());
         $coupons = $query->paginate($limit);
 
         return CouponResource::collection($coupons);
     }
 
-    public function store(CouponCreateRequest $request)
+    public function store(CouponCreateRequest $request): CouponResource
     {
         $user = $request->user();
         $shopId = $request->shop_id;
@@ -45,33 +47,41 @@ class CouponController extends BaseController
         return new CouponResource($coupon);
     }
 
-    public function show(Request $request, string $params)
+    public function show(Request $request, string $params): CouponResource
     {
-        $language = $request->language ?? config('shop.default_language', 'id');
+        $langInput = $request->input('language', config('shop.default_language', 'id'));
+        $language = is_string($langInput) ? $langInput : 'id';
         $coupon = $this->couponQueryService->findCoupon($params, $language);
         $this->authorize('view', $coupon);
 
         return new CouponResource($coupon);
     }
 
-    public function verify(Request $request)
+    public function verify(Request $request): JsonResponse
     {
         $request->validate([
             'code' => 'required|string',
             'sub_total' => 'required|numeric',
         ]);
 
+        $codeInput = $request->input('code');
+        $subTotalInput = $request->input('sub_total');
+        $itemInput = $request->input('item');
+
+        /** @var array<int, array<string, mixed>>|null $items */
+        $items = is_array($itemInput) ? $itemInput : null;
+
         $result = $this->couponQueryService->verifyCoupon(
-            $request->code,
-            (float) $request->sub_total,
-            $request->item,
+            is_string($codeInput) ? $codeInput : '',
+            is_numeric($subTotalInput) ? (float) $subTotalInput : 0.0,
+            $items,
             $request->user()
         );
 
         return response()->json($result);
     }
 
-    public function update(CouponUpdateRequest $request, int $id)
+    public function update(CouponUpdateRequest $request, int $id): CouponResource
     {
         $coupon = Coupon::findOrFail($id);
         $this->authorize('update', $coupon);
@@ -84,7 +94,7 @@ class CouponController extends BaseController
         return new CouponResource($updated);
     }
 
-    public function destroy(int $id)
+    public function destroy(int $id): JsonResponse
     {
         $coupon = Coupon::findOrFail($id);
         $this->authorize('delete', $coupon);
@@ -93,23 +103,25 @@ class CouponController extends BaseController
         return $this->sendSuccess(null, 'Coupon deleted successfully');
     }
 
-    public function approveCoupon(Request $request)
+    public function approveCoupon(Request $request): CouponResource
     {
         $this->authorize('approve', Coupon::class);
 
         $request->validate(['id' => 'required|exists:coupons,id']);
-        $coupon = Coupon::findOrFail($request->id);
+        /** @var Coupon $coupon */
+        $coupon = Coupon::where('id', $request->input('id'))->firstOrFail();
         $this->couponWriteService->approveCoupon($coupon);
 
         return new CouponResource($coupon);
     }
 
-    public function disApproveCoupon(Request $request)
+    public function disApproveCoupon(Request $request): CouponResource
     {
         $this->authorize('disapprove', Coupon::class);
 
         $request->validate(['id' => 'required|exists:coupons,id']);
-        $coupon = Coupon::findOrFail($request->id);
+        /** @var Coupon $coupon */
+        $coupon = Coupon::where('id', $request->input('id'))->firstOrFail();
         $this->couponWriteService->disapproveCoupon($coupon);
 
         return new CouponResource($coupon);

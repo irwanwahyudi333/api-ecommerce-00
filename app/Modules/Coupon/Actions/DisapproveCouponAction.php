@@ -16,6 +16,6 @@ final class DisapproveCouponAction
 
         Cache::forget("coupons_{$coupon->language}_*"); // Invalidate cache
 
-        return $coupon->fresh();
+        return clone $coupon->refresh();
     }
 }

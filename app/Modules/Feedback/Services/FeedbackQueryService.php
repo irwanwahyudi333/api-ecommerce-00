@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Model;
 final class FeedbackQueryService
 {
     /**
-     * @return class-string
+     * @return class-string<Model>
      */
     private function resolveModelClass(string $type): string
     {
@@ -22,7 +22,7 @@ final class FeedbackQueryService
             'Question' => Question::class,
         ];
 
-        /** @var class-string $class */
+        /** @var class-string<Model> $class */
         $class = $map[$type] ?? 'App\\Models\\'.$type;
 
         return $class;
@@ -37,8 +37,11 @@ final class FeedbackQueryService
 
     public function getExistingFeedback(Model $target, int $userId): ?Feedback
     {
-        /** @phpstan-ignore method.notFound */
-        return $target->feedbacks()->where('user_id', $userId)->first();
+        if ($target instanceof Review || $target instanceof Question) {
+            return $target->feedbacks()->where('user_id', $userId)->first();
+        }
+
+        return null;
     }
 
     /**

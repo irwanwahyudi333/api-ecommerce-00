@@ -19,9 +19,14 @@ final class FeedbackData
      */
     public static function fromRequest(array $data, ?int $userId = null): self
     {
+        /** @var int|string $modelId */
+        $modelId = $data['model_id'];
+        /** @var string $modelType */
+        $modelType = $data['model_type'];
+
         return new self(
-            model_id: (int) $data['model_id'],
-            model_type: $data['model_type'],
+            model_id: (int) $modelId,
+            model_type: $modelType,
             positive: isset($data['positive']) ? (bool) $data['positive'] : null,
             negative: isset($data['negative']) ? (bool) $data['negative'] : null,
             user_id: $userId,

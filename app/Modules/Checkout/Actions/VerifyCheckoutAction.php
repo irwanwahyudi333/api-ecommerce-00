@@ -10,43 +10,58 @@ use App\Models\Shipping;
 use App\Models\Tax;
 use App\Models\User;
 use App\Models\Variation;
+use App\Models\Wallet;
 use App\Modules\Checkout\DTO\CheckoutVerifyData;
 use App\Modules\Wallet\Services\WalletService;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Collection;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 
 final class VerifyCheckoutAction
 {
     public function __construct(private WalletService $walletService) {} // WalletService needs modularization
 
+    /**
+     * @return array{
+     *     total_tax: float,
+     *     shipping_charge: float,
+     *     unavailable_products: array<int, int>,
+     *     wallet_amount: float|int,
+     *     wallet_currency: float|string,
+     *     total_amount: float,
+     *     order_total: float
+     * }
+     */
     public function execute(CheckoutVerifyData $data, User $authUser): array
     {
         $user = $authUser;
 
         $settings = Settings::getData();
-        $minimumOrderAmount = $settings->options['minimumOrderAmount'] ?? 0;
+        $minimumOrderAmount = (float) ($settings->options['minimumOrderAmount'] ?? 0);
 
         // 1. Hitung subtotal produk dari database
         $productsInCart = $this->calculateProductsSubtotal($data->products);
-        $data->products = $productsInCart['valid_products']; // Update data dengan produk yang sudah divalidasi dan dihitung ulang
+        $validProducts = $productsInCart['valid_products']; // Update data dengan produk yang sudah divalidasi dan dihitung ulang
         $unavailableProducts = $productsInCart['unavailable_products'];
-        $amount = $productsInCart['total_amount'];
+        $amount = (float) $productsInCart['total_amount'];
 
-        $isFreeShippingEnabled = $settings->options['freeShipping'] ?? false;
-        $freeShippingAmount = $settings->options['freeShippingAmount'] ?? 0;
+        $isFreeShippingEnabled = (bool) ($settings->options['freeShipping'] ?? false);
+        $freeShippingAmount = (float) ($settings->options['freeShippingAmount'] ?? 0);
         $shippingCharge = ($isFreeShippingEnabled && $freeShippingAmount <= $amount)
-            ? 0
-            : $this->calculateShippingCharge($data->products, $amount);
+            ? 0.0
+            : $this->calculateShippingCharge($validProducts, $amount);
 
         $tax = $this->calculateTax($data->billing_address, $data->shipping_address, $amount, $shippingCharge);
 
-        $total = $amount + $tax + $shippingCharge;
+        $total = (float) ($amount + $tax + $shippingCharge);
 
         if ($total < $minimumOrderAmount) {
             throw new BadRequestHttpException('Minimum order amount is '.$minimumOrderAmount);
         }
 
-        $walletPoints = $user->wallet ? $user->wallet->available_points : 0;
+        /** @var Wallet|null $wallet */
+        $wallet = $user->wallet;
+        $walletPoints = $wallet ? (int) $wallet->available_points : 0;
 
         return [
             'total_tax' => $tax,
@@ -59,12 +74,22 @@ final class VerifyCheckoutAction
         ];
     }
 
+    /**
+     * @param  array<int, array{product_id: int, order_quantity: int, variation_option_id?: int|null, unit_price?: numeric, subtotal?: numeric}>  $productsInput
+     * @return array{
+     *     total_amount: float,
+     *     unavailable_products: array<int, int>,
+     *     valid_products: array<int, array<string, mixed>>
+     * }
+     */
     private function calculateProductsSubtotal(array $productsInput): array
     {
         $productIds = array_column($productsInput, 'product_id');
         $variationIds = array_filter(array_column($productsInput, 'variation_option_id'));
 
+        /** @var Collection<int|string, Product> $productsById */
         $productsById = Product::whereIn('id', $productIds)->get()->keyBy('id');
+        /** @var Collection<int|string, Variation> $variationsById */
         $variationsById = ! empty($variationIds)
             ? Variation::whereIn('id', $variationIds)->get()->keyBy('id')
             : collect();
@@ -74,9 +99,9 @@ final class VerifyCheckoutAction
         $validProducts = [];
 
         foreach ($productsInput as $item) {
-            $productId = $item['product_id'];
-            $variationId = $item['variation_option_id'] ?? null;
-            $quantity = $item['order_quantity'];
+            $productId = (int) $item['product_id'];
+            $variationId = isset($item['variation_option_id']) ? (int) $item['variation_option_id'] : null;
+            $quantity = (int) $item['order_quantity'];
 
             $isUnavailable = false;
             $unitPrice = 0.0;
@@ -93,11 +118,11 @@ final class VerifyCheckoutAction
                         $isUnavailable = true;
                     } else {
                         $unitPrice = (float) ($variation->sale_price ?? $variation->price);
-                        if ($quantity > $variation->quantity) {
+                        if ($quantity > (int) $variation->quantity) {
                             $isUnavailable = true;
                         }
                     }
-                } elseif ($quantity > $productModel->quantity) {
+                } elseif ($quantity > (int) $productModel->quantity) {
                     $isUnavailable = true;
                 }
             }
@@ -124,6 +149,10 @@ final class VerifyCheckoutAction
         ];
     }
 
+    /**
+     * @param  array<int, array<string, mixed>>  $products
+     * @param  array<int, int>  $unavailableProducts
+     */
     public function getOrderAmount(array $products, array $unavailableProducts): float
     {
         // Fungsi ini tidak lagi dibutuhkan karena perhitungan dilakukan di calculateProductsSubtotal
@@ -133,12 +162,19 @@ final class VerifyCheckoutAction
         return 0.0;
     }
 
+    /**
+     * @param  array<int, array<string, mixed>>  $products
+     * @return array<int, int>
+     */
     public function checkStock(array $products): array
     {
         // Fungsi ini tidak lagi dibutuhkan karena stock check dilakukan di calculateProductsSubtotal
         return [];
     }
 
+    /**
+     * @param  array<int, array<string, mixed>>  $products
+     */
     public function calculateShippingCharge(array $products, float $amount): float
     {
         $orderedProducts = $products;
@@ -155,6 +191,7 @@ final class VerifyCheckoutAction
         $shippingClassId = $settings->options['shippingClass'] ?? null;
 
         if ($shippingClassId) {
+            /** @var Shipping|null $shippingClass */
             $shippingClass = Shipping::find($shippingClassId);
             if ($shippingClass) {
                 return $this->getShippingCharge($shippingClass, $amount);
@@ -164,6 +201,9 @@ final class VerifyCheckoutAction
         return $this->calculateShippingChargeByProduct($products);
     }
 
+    /**
+     * @param  array<int, array<string, mixed>>  $products
+     */
     private function calculateShippingChargeByProduct(array $products): float
     {
         $productIds = array_column($products, 'product_id');
@@ -176,8 +216,9 @@ final class VerifyCheckoutAction
         $total = 0;
         foreach ($products as $productId => $product) {
             $subtotal = $productSubtotals[$productId] ?? 0;
-            if ($product->shipping) {
-                $total += $this->getShippingCharge($product->shipping, $subtotal);
+            if ($product->shipping instanceof Shipping) {
+                $subtotalFloat = is_numeric($subtotal) ? (float) $subtotal : 0.0;
+                $total += $this->getShippingCharge($product->shipping, $subtotalFloat);
             }
         }
 
@@ -193,6 +234,10 @@ final class VerifyCheckoutAction
         };
     }
 
+    /**
+     * @param  array<string, mixed>|null  $billingAddress
+     * @param  array<string, mixed>|null  $shippingAddress
+     */
     public function calculateTax(?array $billingAddress, ?array $shippingAddress, float $amount, float $shippingCharge): float
     {
         $taxClass = $this->getTaxClass($billingAddress, $shippingAddress);
@@ -203,6 +248,10 @@ final class VerifyCheckoutAction
         return ($amount * $taxClass->rate) / 100;
     }
 
+    /**
+     * @param  array<string, mixed>|null  $billingAddress
+     * @param  array<string, mixed>|null  $shippingAddress
+     */
     private function getTaxClass(?array $billingAddress, ?array $shippingAddress): ?Tax
     {
         $address = $shippingAddress ?? $billingAddress; // Prioritaskan shipping address

@@ -9,11 +9,11 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
- * @mixin array{
+ * @property-read array{
  *     is_valid: bool,
  *     message?: string,
  *     coupon?: Coupon,
- * }
+ * } $resource
  */
 final class CouponVerifyResource extends JsonResource
 {
@@ -22,12 +22,12 @@ final class CouponVerifyResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $coupon = $this->resource['coupon'] ?? null;
+
         return [
-            'is_valid' => $this['is_valid'],
-            'message' => $this['message'] ?? null,
-            'coupon' => $this->when($this['coupon'] !== null, function () {
-                return new CouponResource($this['coupon']); // Use existing CouponResource
-            }),
+            'is_valid' => $this->resource['is_valid'],
+            'message' => $this->resource['message'] ?? null,
+            'coupon' => $this->when($coupon !== null, new CouponResource($coupon)),
         ];
     }
 }

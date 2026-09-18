@@ -19,7 +19,8 @@ final class CreateConversationAction
         // It assumes the current user is $userId.
         $user = User::find($userId); // Get user model for shop owner/staff check
         if ($user && ($shop->owner_id === $user->id || ($user->shop_id && $user->shop_id === $shop->id))) {
-            throw new BadRequestHttpException(config('notice.YOU_CAN_NOT_SEND_MESSAGE_TO_YOUR_OWN_SHOP'));
+            $message = config('notice.YOU_CAN_NOT_SEND_MESSAGE_TO_YOUR_OWN_SHOP');
+            throw new BadRequestHttpException(is_string($message) ? $message : 'You cannot send a message to your own shop.');
         }
 
         // Cek apakah sudah ada

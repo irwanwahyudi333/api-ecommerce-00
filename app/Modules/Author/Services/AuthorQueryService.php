@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Modules\Author\Services;
 
 use App\Models\Author;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Cache;
 
 final class AuthorQueryService
@@ -14,7 +14,7 @@ final class AuthorQueryService
     private const CACHE_TTL_SECONDS = 3600; // 1 hour
 
     /**
-     * @return LengthAwarePaginator<Author>
+     * @return LengthAwarePaginator<int, Author>
      */
     public function getAuthorsByLanguage(string $language, int $perPage = 15): LengthAwarePaginator
     {

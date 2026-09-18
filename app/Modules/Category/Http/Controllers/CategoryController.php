@@ -12,6 +12,7 @@ use App\Modules\Category\Http\Requests\CategoryUpdateRequest;
 use App\Modules\Category\Http\Resources\CategoryResource;
 use App\Modules\Category\Services\CategoryQueryService;
 use App\Modules\Category\Services\CategoryWriteService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 
@@ -22,15 +23,18 @@ class CategoryController extends BaseController
         private readonly CategoryWriteService $categoryWriteService
     ) {}
 
-    public function index(Request $request)
+    public function index(Request $request): JsonResponse
     {
 
-        $language = $request->language ?? config('shop.default_language', 'id');
-        $parent = $request->parent ?? null;
-        $selfId = $request->self ?? null;
-        $limit = (int) ($request->limit ?? 15);
+        $defaultLang = is_string(config('shop.default_language')) ? config('shop.default_language') : 'id';
+        $language = is_string($request->language) ? $request->language : (string) $defaultLang;
+        $parent = is_string($request->parent) || is_numeric($request->parent) ? (string) $request->parent : null;
+        $selfId = is_numeric($request->self) ? (int) $request->self : null;
+        $limit = is_numeric($request->limit) ? (int) $request->limit : 15;
 
-        $cacheKey = "categories_{$language}_{$parent}_{$selfId}_{$limit}";
+        $parentStr = $parent ?? 'null';
+        $selfIdStr = $selfId ?? 'null';
+        $cacheKey = "categories_{$language}_{$parentStr}_{$selfIdStr}_{$limit}";
         $categories = Cache::remember($cacheKey, 3600, function () use ($language, $parent, $selfId, $limit) {
             return $this->categoryQueryService->getCategories($language, $parent, $selfId, $limit);
         });
@@ -42,7 +46,7 @@ class CategoryController extends BaseController
         );
     }
 
-    public function store(CategoryCreateRequest $request)
+    public function store(CategoryCreateRequest $request): JsonResponse
     {
         $this->authorize('create', Category::class);
 
@@ -54,9 +58,10 @@ class CategoryController extends BaseController
         return $this->sendSuccess(new CategoryResource($category), 'Category created', 201);
     }
 
-    public function show(Request $request, string $params)
+    public function show(Request $request, string $params): JsonResponse
     {
-        $language = $request->language ?? config('shop.default_language', 'id');
+        $defaultLang = is_string(config('shop.default_language')) ? config('shop.default_language') : 'id';
+        $language = is_string($request->language) ? $request->language : (string) $defaultLang;
 
         $cacheKey = "category_{$params}_{$language}";
         $category = Cache::remember($cacheKey, 3600, function () use ($params, $language) {
@@ -66,7 +71,7 @@ class CategoryController extends BaseController
         return $this->sendSuccess(new CategoryResource($category), 'Category detail');
     }
 
-    public function update(CategoryUpdateRequest $request, int $id)
+    public function update(CategoryUpdateRequest $request, int $id): JsonResponse
     {
         $category = Category::findOrFail($id);
         $this->authorize('update', $category);
@@ -79,7 +84,7 @@ class CategoryController extends BaseController
         return $this->sendSuccess(new CategoryResource($updated), 'Category updated');
     }
 
-    public function destroy(Request $request, int $id)
+    public function destroy(Request $request, int $id): JsonResponse
     {
         $category = Category::findOrFail($id);
         $this->authorize('delete', $category);
@@ -92,9 +97,9 @@ class CategoryController extends BaseController
         return $this->sendSuccess(null, 'Category deleted');
     }
 
-    public function fetchFeaturedCategories(Request $request)
+    public function fetchFeaturedCategories(Request $request): JsonResponse
     {
-        $perPage = (int) ($request->limit ?? 3);
+        $perPage = is_numeric($request->limit) ? (int) $request->limit : 3;
         $cacheKey = "featured_categories_{$perPage}";
         $categories = Cache::remember($cacheKey, 3600, function () use ($perPage) {
             return $this->categoryQueryService->fetchFeaturedCategories($perPage);

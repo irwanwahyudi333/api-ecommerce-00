@@ -11,6 +11,7 @@ use App\Modules\DeliveryTime\Http\Requests\DeliveryTimeRequest;
 use App\Modules\DeliveryTime\Http\Resources\DeliveryTimeResource;
 use App\Modules\DeliveryTime\Services\DeliveryTimeQueryService;
 use App\Modules\DeliveryTime\Services\DeliveryTimeWriteService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 
@@ -21,9 +22,11 @@ class DeliveryTimeController extends BaseController
         private readonly DeliveryTimeWriteService $deliveryTimeWriteService
     ) {}
 
-    public function index(Request $request)
+    public function index(Request $request): JsonResponse
     {
-        $language = $request->language ?? config('shop.default_language', 'id');
+        $langParam = $request->language;
+        $defaultLang = config('shop.default_language', 'id');
+        $language = is_string($langParam) ? $langParam : (is_string($defaultLang) ? $defaultLang : 'id');
         $cacheKey = "delivery_times_{$language}";
         $deliveryTimes = Cache::rememberForever($cacheKey, function () use ($language) {
             return $this->deliveryTimeQueryService->getAll($language);
@@ -35,7 +38,7 @@ class DeliveryTimeController extends BaseController
         );
     }
 
-    public function store(DeliveryTimeRequest $request)
+    public function store(DeliveryTimeRequest $request): JsonResponse
     {
         $this->authorize('create', DeliveryTime::class);
 
@@ -50,9 +53,11 @@ class DeliveryTimeController extends BaseController
         );
     }
 
-    public function show(Request $request, string $params)
+    public function show(Request $request, string $params): JsonResponse
     {
-        $language = $request->language ?? config('shop.default_language', 'id');
+        $langParam = $request->language;
+        $defaultLang = config('shop.default_language', 'id');
+        $language = is_string($langParam) ? $langParam : (is_string($defaultLang) ? $defaultLang : 'id');
         $deliveryTime = $this->deliveryTimeQueryService->find($params, $language);
 
         return $this->sendSuccess(
@@ -61,7 +66,7 @@ class DeliveryTimeController extends BaseController
         );
     }
 
-    public function update(DeliveryTimeRequest $request, int $id)
+    public function update(DeliveryTimeRequest $request, int $id): JsonResponse
     {
         $deliveryTime = DeliveryTime::findOrFail($id);
         $this->authorize('update', $deliveryTime);
@@ -76,7 +81,7 @@ class DeliveryTimeController extends BaseController
         );
     }
 
-    public function destroy(Request $request, int $id)
+    public function destroy(Request $request, int $id): JsonResponse
     {
         $deliveryTime = DeliveryTime::findOrFail($id);
         $this->authorize('delete', $deliveryTime);

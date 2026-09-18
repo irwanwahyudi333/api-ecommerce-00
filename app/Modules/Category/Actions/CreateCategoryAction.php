@@ -14,7 +14,7 @@ class CreateCategoryAction
     {
         $attributes = array_filter([
             'name' => $data->name,
-            'slug' => $data->slug ?? Str::slug($data->name),
+            'slug' => $data->slug ?? Str::slug((string) $data->name),
             'type_id' => $data->type_id,
             'icon' => $data->icon,
             'image' => $data->image,

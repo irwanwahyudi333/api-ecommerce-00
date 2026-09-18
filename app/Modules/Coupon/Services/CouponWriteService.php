@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Modules\Coupon\Services;
 
 use App\Models\Coupon;
+use App\Modules\Coupon\Actions\ApproveCouponAction;
 use App\Modules\Coupon\Actions\CreateCouponAction;
+use App\Modules\Coupon\Actions\DisapproveCouponAction;
 use App\Modules\Coupon\Actions\UpdateCouponAction;
 use App\Modules\Coupon\DTO\CouponData;
 
@@ -14,6 +16,8 @@ final class CouponWriteService
     public function __construct(
         private readonly CreateCouponAction $createCouponAction,
         private readonly UpdateCouponAction $updateCouponAction,
+        private readonly ApproveCouponAction $approveCouponAction,
+        private readonly DisapproveCouponAction $disapproveCouponAction,
     ) {}
 
     public function createCoupon(CouponData $data, bool $isSuperAdmin): Coupon
@@ -62,5 +66,20 @@ final class CouponWriteService
         }
 
         return $this->updateCouponAction->execute($coupon, $data);
+    }
+
+    public function deleteCoupon(Coupon $coupon): bool
+    {
+        return (bool) $coupon->delete();
+    }
+
+    public function approveCoupon(Coupon $coupon): Coupon
+    {
+        return $this->approveCouponAction->execute($coupon);
+    }
+
+    public function disapproveCoupon(Coupon $coupon): Coupon
+    {
+        return $this->disapproveCouponAction->execute($coupon);
     }
 }

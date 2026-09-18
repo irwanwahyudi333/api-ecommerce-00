@@ -12,7 +12,7 @@ class ConversationPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user !== null;
+        return true;
     }
 
     public function view(User $user, Conversation $conversation): bool
@@ -39,6 +39,6 @@ class ConversationPolicy
     {
         // Semua user yang login bisa membuat percakapan
         // Tapi pengecekan tambahan (tidak boleh chat dengan toko sendiri) dilakukan di controller
-        return $user !== null;
+        return true;
     }
 }

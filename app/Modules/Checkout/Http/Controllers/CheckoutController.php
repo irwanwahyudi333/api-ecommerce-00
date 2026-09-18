@@ -20,7 +20,9 @@ final class CheckoutController extends BaseController
         $this->authorize('verify', User::class);
 
         $data = CheckoutVerifyData::fromRequest($request->validated());
-        $result = $this->verifyAction->execute($data, $request->user());
+        /** @var User $user */
+        $user = $request->user();
+        $result = $this->verifyAction->execute($data, $user);
 
         return new CheckoutResource($result);
     }

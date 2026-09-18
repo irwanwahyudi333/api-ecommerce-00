@@ -15,10 +15,13 @@ class DigitalProductUpdateEvent
 
     public User $user;
 
+    /** @var array<string, mixed>|null */
     public ?array $optionalData;
 
     /**
      * Create a new event instance.
+     *
+     * @param  array<string, mixed>|null  $optionalData
      */
     public function __construct(Product $product, User $user, ?array $optionalData = null)
     {

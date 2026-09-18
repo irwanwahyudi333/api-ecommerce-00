@@ -40,6 +40,9 @@ class Question extends Model
         return $this->belongsTo(Shop::class, 'shop_id');
     }
 
+    /**
+     * @return MorphMany<Feedback, Question>
+     */
     public function feedbacks(): MorphMany
     {
         return $this->morphMany(Feedback::class, 'model');

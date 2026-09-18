@@ -25,4 +25,9 @@ final class AuthorWriteService
     {
         return $this->updateAuthorAction->execute($author, $data);
     }
+
+    public function deleteAuthor(Author $author): void
+    {
+        $author->delete();
+    }
 }

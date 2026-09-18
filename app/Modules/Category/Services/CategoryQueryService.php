@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Category\Services;
 
 use App\Models\Category;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Cache;
 
 final class CategoryQueryService
@@ -13,7 +13,7 @@ final class CategoryQueryService
     private const CACHE_TTL_SECONDS = 3600; // 1 hour
 
     /**
-     * @return LengthAwarePaginator<Category>
+     * @return LengthAwarePaginator<int, Category>
      */
     public function getCategories(string $language, ?string $parent = null, ?int $selfId = null, int $perPage = 15): LengthAwarePaginator
     {
@@ -69,7 +69,7 @@ final class CategoryQueryService
     }
 
     /**
-     * @return LengthAwarePaginator<Category>
+     * @return LengthAwarePaginator<int, Category>
      */
     public function fetchFeaturedCategories(int $perPage = 3): LengthAwarePaginator
     {

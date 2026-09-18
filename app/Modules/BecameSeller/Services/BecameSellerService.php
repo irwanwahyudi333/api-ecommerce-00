@@ -7,24 +7,41 @@ use App\Modules\BecameSeller\DTO\BecameSellerData;
 
 class BecameSellerService
 {
+    /**
+     * @return array<string, mixed>
+     */
     public function getData(string $language): array
     {
-        return BecameSeller::getData($language)?->page_options ?? [];
+        $seller = BecameSeller::getData($language);
+        if ($seller instanceof BecameSeller) {
+            /** @var array<string, mixed> $pageOptions */
+            $pageOptions = $seller->page_options;
+
+            return $pageOptions;
+        }
+
+        return [];
     }
 
     public function storeOrUpdate(BecameSellerData $data): BecameSeller
     {
         $existing = BecameSeller::where('language', $data->language)->first();
-        if ($existing) {
+        if ($existing instanceof BecameSeller) {
             $existing->update(['page_options' => $data->page_options]);
 
-            return $existing->fresh();
-        } else {
-            return BecameSeller::create([
-                'page_options' => $data->page_options,
-                'language' => $data->language,
-            ]);
+            /** @var BecameSeller $fresh */
+            $fresh = $existing->fresh();
+
+            return $fresh;
         }
+
+        /** @var BecameSeller $created */
+        $created = BecameSeller::create([
+            'page_options' => $data->page_options,
+            'language' => $data->language,
+        ]);
+
+        return $created;
     }
 
     public function getFirst(): ?BecameSeller

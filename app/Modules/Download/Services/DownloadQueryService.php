@@ -18,7 +18,7 @@ final class DownloadQueryService
      */
     public function getDownloadableFilesQuery(Authenticatable $user): Builder
     {
-        return OrderedFile::where('customer_id', $user->id)
+        return OrderedFile::where('customer_id', $user->getAuthIdentifier())
             ->with(['order', 'file.fileable']); // Eager load relations for resource
     }
 

@@ -27,6 +27,6 @@ final class UpdateDeliveryTimeAction
 
         Cache::forget("delivery_times_{$deliveryTime->language}"); // Invalidate cache
 
-        return $deliveryTime->fresh();
+        return $deliveryTime->refresh();
     }
 }

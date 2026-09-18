@@ -25,4 +25,9 @@ final class CategoryWriteService
     {
         return $this->updateCategoryAction->execute($category, $data);
     }
+
+    public function deleteCategory(Category $category): void
+    {
+        $category->delete();
+    }
 }

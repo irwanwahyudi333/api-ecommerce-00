@@ -11,6 +11,7 @@ use App\Modules\Author\Http\Requests\AuthorRequest;
 use App\Modules\Author\Http\Resources\AuthorResource;
 use App\Modules\Author\Services\AuthorQueryService;
 use App\Modules\Author\Services\AuthorWriteService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 
@@ -21,10 +22,11 @@ class AuthorController extends BaseController
         private readonly AuthorWriteService $authorWriteService
     ) {}
 
-    public function index(Request $request)
+    public function index(Request $request): JsonResponse
     {
-        $limit = $request->limit ?? 15;
-        $language = $request->language ?? config('shop.default_language', 'id');
+        $defaultLang = is_string(config('shop.default_language')) ? config('shop.default_language') : 'id';
+        $limit = $request->integer('limit', 15);
+        $language = $request->string('language', $defaultLang)->toString();
         $cacheKey = "authors_{$language}_{$limit}";
         $authors = Cache::remember($cacheKey, 3600, function () use ($language, $limit) {
             return $this->authorQueryService->getAuthorsByLanguage($language, $limit);
@@ -32,12 +34,12 @@ class AuthorController extends BaseController
 
         return $this->sendPaginated(
             $authors,
-            AuthorResource::collection($authors->getCollection()),
+            AuthorResource::collection($authors->items()),
             'Daftar author berhasil diambil.'
         );
     }
 
-    public function store(AuthorRequest $request)
+    public function store(AuthorRequest $request): JsonResponse
     {
         $this->authorize('create', Author::class);
         $data = AuthorData::fromRequest($request->validated());
@@ -47,15 +49,16 @@ class AuthorController extends BaseController
         return $this->sendSuccess(new AuthorResource($author), 'Author created', 201);
     }
 
-    public function show(Request $request, string $slug)
+    public function show(Request $request, string $slug): JsonResponse
     {
-        $language = $request->language ?? config('shop.default_language', 'id');
+        $defaultLang = is_string(config('shop.default_language')) ? config('shop.default_language') : 'id';
+        $language = $request->string('language', $defaultLang)->toString();
         $author = $this->authorQueryService->getAuthorBySlug($slug, $language);
 
         return $this->sendSuccess(new AuthorResource($author), 'Author detail');
     }
 
-    public function update(AuthorRequest $request, int $id)
+    public function update(AuthorRequest $request, int $id): JsonResponse
     {
         $author = Author::findOrFail($id);
         $this->authorize('update', $author);
@@ -66,7 +69,7 @@ class AuthorController extends BaseController
         return $this->sendSuccess(new AuthorResource($updated), 'Author updated');
     }
 
-    public function destroy(Request $request, int $id)
+    public function destroy(Request $request, int $id): JsonResponse
     {
         $author = Author::findOrFail($id);
         $this->authorize('delete', $author);
@@ -77,10 +80,11 @@ class AuthorController extends BaseController
         return $this->sendSuccess(null, 'Author deleted');
     }
 
-    public function topAuthor(Request $request)
+    public function topAuthor(Request $request): JsonResponse
     {
-        $language = $request->language ?? config('shop.default_language', 'id');
-        $limit = $request->limit ?? 10;
+        $defaultLang = is_string(config('shop.default_language')) ? config('shop.default_language') : 'id';
+        $language = $request->string('language', $defaultLang)->toString();
+        $limit = $request->integer('limit', 10);
         $cacheKey = "top_authors_{$language}_{$limit}";
         $authors = Cache::remember($cacheKey, 3600, function () use ($language, $limit) {
             return $this->authorQueryService->getTopAuthors($language, $limit);

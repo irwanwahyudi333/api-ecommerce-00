@@ -9,14 +9,13 @@ use App\Enums\Permission;
 use App\Models\Coupon;
 use App\Models\Settings;
 use App\Models\Shop;
+use App\Models\User;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
 final class CouponQueryService
 {
-    private const CACHE_TTL_SECONDS = 3600; // 1 hour
-
     /**
      * @return Builder<Coupon>
      */
@@ -29,14 +28,20 @@ final class CouponQueryService
             if ($user->hasPermissionTo(Permission::SUPER_ADMIN->value)) {
                 // admin bisa lihat semua
             } elseif ($user->hasPermissionTo(Permission::STORE_OWNER->value)) {
-                if ($request->shop_id && $this->userHasPermissionToShop($user, (int) $request->shop_id)) {
-                    $query->where('shop_id', (int) $request->shop_id);
+                $reqShopId = $request->input('shop_id');
+                $shopId = is_numeric($reqShopId) ? (int) $reqShopId : 0;
+                if ($shopId && $this->userHasPermissionToShop($user, $shopId)) {
+                    $query->where('shop_id', $shopId);
                 } else {
+                    /** @var User $user */
                     $query->whereIn('shop_id', $user->shops()->pluck('id'));
                 }
             } elseif ($user->hasPermissionTo(Permission::STAFF->value)) {
+                /** @var User $user */
                 $query->where('shop_id', (int) $user->shop_id);
-                if ($request->shop_id && (int) $request->shop_id !== (int) $user->shop_id) {
+                $reqShopId = $request->input('shop_id');
+                $shopId = is_numeric($reqShopId) ? (int) $reqShopId : 0;
+                if ($shopId && $shopId !== (int) $user->shop_id) {
                     $query->whereRaw('1 = 0'); // user has no access to other shops
                 }
             } else {
@@ -65,11 +70,17 @@ final class CouponQueryService
         return Coupon::findOrFail($id);
     }
 
+    /**
+     * @param  array<int, array<string, mixed>>|null  $items
+     * @return array{is_valid: bool, message?: string, coupon?: Coupon}
+     */
     public function verifyCoupon(string $code, float $subTotal, ?array $items = null, ?Authenticatable $user = null): array
     {
         $coupon = Coupon::where('code', $code)->first();
         if (! $coupon) {
-            return ['is_valid' => false, 'message' => config('notice.INVALID_COUPON_CODE')];
+            $msg = config('notice.INVALID_COUPON_CODE');
+
+            return ['is_valid' => false, 'message' => is_string($msg) ? $msg : ''];
         }
 
         $settings = Settings::getData();
@@ -78,19 +89,27 @@ final class CouponQueryService
         $useFreeShipping = $isFreeShippingEnabled && $freeShippingAmount <= $subTotal;
 
         if (! $coupon->is_approve) {
-            return ['is_valid' => false, 'message' => config('notice.THIS_COUPON_CODE_IS_NOT_APPROVED')];
+            $msg = config('notice.THIS_COUPON_CODE_IS_NOT_APPROVED');
+
+            return ['is_valid' => false, 'message' => is_string($msg) ? $msg : ''];
         }
 
         if ($coupon->target && ! $user) {
-            return ['is_valid' => false, 'message' => config('notice.THIS_COUPON_CODE_IS_ONLY_FOR_VERIFIED_USERS')];
+            $msg = config('notice.THIS_COUPON_CODE_IS_ONLY_FOR_VERIFIED_USERS');
+
+            return ['is_valid' => false, 'message' => is_string($msg) ? $msg : ''];
         }
 
         if ($subTotal < $coupon->minimum_cart_amount) {
-            return ['is_valid' => false, 'message' => config('notice.COUPON_CODE_IS_NOT_APPLICABLE')];
+            $msg = config('notice.COUPON_CODE_IS_NOT_APPLICABLE');
+
+            return ['is_valid' => false, 'message' => is_string($msg) ? $msg : ''];
         }
 
         if ($coupon->type === CouponType::FREE_SHIPPING_COUPON->value && $useFreeShipping) {
-            return ['is_valid' => false, 'message' => config('notice.ALREADY_FREE_SHIPPING_ACTIVATED')];
+            $msg = config('notice.ALREADY_FREE_SHIPPING_ACTIVATED');
+
+            return ['is_valid' => false, 'message' => is_string($msg) ? $msg : ''];
         }
 
         // Shop-specific validation
@@ -98,8 +117,10 @@ final class CouponQueryService
             $totalForShop = 0;
             foreach ($items as $item) {
                 if (($item['shop_id'] ?? null) == $coupon->shop_id) {
-                    $price = $item['price'] ?? $item['unit_price'] ?? 0;
-                    $quantity = $item['quantity'] ?? $item['order_quantity'] ?? 1;
+                    $p = $item['price'] ?? $item['unit_price'] ?? 0;
+                    $price = is_numeric($p) ? (float) $p : 0.0;
+                    $q = $item['quantity'] ?? $item['order_quantity'] ?? 1;
+                    $quantity = is_numeric($q) ? (float) $q : 1.0;
                     $totalForShop += $price * $quantity;
                 }
             }
@@ -110,16 +131,18 @@ final class CouponQueryService
             } elseif ($coupon->type === CouponType::PERCENTAGE_COUPON->value) {
                 $discountAmount = ($totalForShop * $coupon->amount) / 100;
                 $isValidForShop = $isValidForShop && $totalForShop > $discountAmount;
-            } elseif ($coupon->type === CouponType::FREE_SHIPPING_COUPON->value) {
-                $isValidForShop = $isValidForShop && $useFreeShipping;
             }
             if (! $isValidForShop) {
-                return ['is_valid' => false, 'message' => config('notice.COUPON_CODE_IS_NOT_APPLICABLE_IN_THIS_SHOP_PRODUCT')];
+                $msg = config('notice.COUPON_CODE_IS_NOT_APPLICABLE_IN_THIS_SHOP_PRODUCT');
+
+                return ['is_valid' => false, 'message' => is_string($msg) ? $msg : ''];
             }
         }
 
         if (! $coupon->is_valid) {
-            return ['is_valid' => false, 'message' => config('notice.INVALID_COUPON_CODE')];
+            $msg = config('notice.INVALID_COUPON_CODE');
+
+            return ['is_valid' => false, 'message' => is_string($msg) ? $msg : ''];
         }
 
         return ['is_valid' => true, 'coupon' => $coupon];
@@ -135,6 +158,7 @@ final class CouponQueryService
             return false;
         }
 
+        /** @var User $user */
         return $shop->owner_id === $user->id;
     }
 }

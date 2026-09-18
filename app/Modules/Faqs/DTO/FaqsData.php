@@ -17,20 +17,28 @@ final class FaqsData
         public readonly ?string $issued_by,
     ) {}
 
+    /**
+     * @param  array<string, mixed>  $data
+     */
     public static function fromRequest(array $data, ?int $userId = null): self
     {
+        $defaultLanguage = config('shop.default_language', 'id');
+
         return new self(
-            faq_title: $data['faq_title'] ?? null,
-            faq_description: $data['faq_description'] ?? null,
-            language: $data['language'] ?? config('shop.default_language', 'id'),
-            slug: $data['slug'] ?? null,
+            faq_title: isset($data['faq_title']) && is_string($data['faq_title']) ? $data['faq_title'] : null,
+            faq_description: isset($data['faq_description']) && is_string($data['faq_description']) ? $data['faq_description'] : null,
+            language: isset($data['language']) && is_string($data['language']) ? $data['language'] : (is_string($defaultLanguage) ? $defaultLanguage : 'id'),
+            slug: isset($data['slug']) && is_string($data['slug']) ? $data['slug'] : null,
             user_id: $userId,
-            shop_id: $data['shop_id'] ?? null,
-            faq_type: $data['faq_type'] ?? null,
-            issued_by: $data['issued_by'] ?? null,
+            shop_id: isset($data['shop_id']) && is_numeric($data['shop_id']) ? (int) $data['shop_id'] : null,
+            faq_type: isset($data['faq_type']) && is_string($data['faq_type']) ? $data['faq_type'] : null,
+            issued_by: isset($data['issued_by']) && is_string($data['issued_by']) ? $data['issued_by'] : null,
         );
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function toArray(): array
     {
         return array_filter([

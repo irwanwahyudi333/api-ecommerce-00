@@ -14,8 +14,7 @@ class OrderCreatedMailTest extends TestCase
 {
     use RefreshDatabase; // Gunakan ini jika Anda ingin database di-refresh untuk setiap test
 
-    /** @test */
-    public function order_created_event_sends_email_to_customer()
+    public function test_order_created_event_sends_email_to_customer()
     {
         Mail::fake(); // Mengaktifkan Mail fake facade
 
@@ -38,10 +37,10 @@ class OrderCreatedMailTest extends TestCase
         $order->load('customer');
 
         // 2. Action: Dispatch event OrderCreated
-        event(new OrderCreatedEvent($order));
+        event(new OrderCreatedEvent($order, []));
 
         // 3. Assertions: Verifikasi email terkirim
-        Mail::assertSent(OrderCreatedMailable::class, function ($mail) use ($customer, $order) {
+        Mail::assertQueued(OrderCreatedMailable::class, function ($mail) use ($customer, $order) {
             // Periksa apakah email dikirim ke customer yang benar
             $this->assertTrue($mail->hasTo($customer->email));
 
@@ -50,7 +49,7 @@ class OrderCreatedMailTest extends TestCase
 
             // Periksa subjek email (gunakan __() untuk memicu terjemahan)
             $expectedSubject = __('order.created_subject', ['ORDER_TRACKING_NUMBER' => $order->tracking_number], $order->language);
-            $this->assertEquals($expectedSubject, $mail->subject);
+            $this->assertTrue($mail->hasSubject($expectedSubject));
 
             // Opsional: Render email untuk memeriksa konten body (hati-hati dengan konten dinamis)
             // $renderedMail = $mail->render();

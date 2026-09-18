@@ -13,6 +13,9 @@ class CategoryCreateRequest extends FormRequest
         return true; // Policy di controller
     }
 
+    /**
+     * @return array<string, string>
+     */
     public function rules(): array
     {
         return [

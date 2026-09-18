@@ -14,7 +14,7 @@ class UpdateCategoryAction
     {
         $attributes = array_filter([
             'name' => $data->name,
-            'slug' => ($data->slug && $data->slug !== $category->slug) ? $data->slug : ($data->name ? Str::slug($data->name) : null),
+            'slug' => ($data->slug && $data->slug !== $category->slug) ? $data->slug : ($data->name ? Str::slug((string) $data->name) : null),
             'type_id' => $data->type_id,
             'icon' => $data->icon,
             'image' => $data->image,
@@ -26,6 +26,9 @@ class UpdateCategoryAction
 
         $category->update($attributes);
 
-        return $category->fresh();
+        /** @var Category $freshCategory */
+        $freshCategory = $category->fresh();
+
+        return $freshCategory;
     }
 }

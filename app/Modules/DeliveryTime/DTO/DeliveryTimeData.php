@@ -14,14 +14,19 @@ class DeliveryTimeData
         public readonly ?string $icon,
     ) {}
 
+    /**
+     * @param  array<string, mixed>  $data
+     */
     public static function fromRequest(array $data): self
     {
+        $defaultLanguage = config('shop.default_language', 'id');
+
         return new self(
-            title: $data['title'] ?? null,
-            slug: $data['slug'] ?? null,
-            language: $data['language'] ?? config('shop.default_language', 'id'),
-            description: $data['description'] ?? null,
-            icon: $data['icon'] ?? null,
+            title: isset($data['title']) && is_string($data['title']) ? $data['title'] : null,
+            slug: isset($data['slug']) && is_string($data['slug']) ? $data['slug'] : null,
+            language: isset($data['language']) && is_string($data['language']) ? $data['language'] : (is_string($defaultLanguage) ? $defaultLanguage : 'id'),
+            description: isset($data['description']) && is_string($data['description']) ? $data['description'] : null,
+            icon: isset($data['icon']) && is_string($data['icon']) ? $data['icon'] : null,
         );
     }
 }

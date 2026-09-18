@@ -15,14 +15,23 @@ class CommissionData
         public readonly ?string $language,
     ) {}
 
+    /**
+     * @param  array<string, mixed>  $data
+     */
     public static function fromArray(array $data, ?string $language = null): self
     {
+        $min_balance = is_scalar($data['min_balance'] ?? null) ? (float) $data['min_balance'] : 0.0;
+        $max_balance = is_scalar($data['max_balance'] ?? null) ? (float) $data['max_balance'] : 0.0;
+        $commission = is_scalar($data['commission'] ?? null) ? (float) $data['commission'] : 0.0;
+        $level = is_scalar($data['level'] ?? null) ? (string) $data['level'] : '';
+        $sub_level = is_scalar($data['sub_level'] ?? null) ? (string) $data['sub_level'] : '';
+
         return new self(
-            min_balance: $data['min_balance'],
-            max_balance: $data['max_balance'],
-            commission: $data['commission'],
-            level: $data['level'],
-            sub_level: $data['sub_level'],
+            min_balance: $min_balance,
+            max_balance: $max_balance,
+            commission: $commission,
+            level: $level,
+            sub_level: $sub_level,
             language: $language,
         );
     }

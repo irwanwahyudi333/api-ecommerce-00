@@ -13,6 +13,9 @@ use Illuminate\Http\Resources\Json\JsonResource;
  */
 class ConversationResource extends JsonResource
 {
+    /**
+     * @return array<string, mixed>
+     */
     public function toArray(Request $request): array
     {
         return [
@@ -30,7 +33,7 @@ class ConversationResource extends JsonResource
                 ];
             }),
             'latest_message' => $this->latest_message, // dari append
-            'unseen' => (int) $this->unseen, // dari append
+            'unseen' => is_numeric($this->unseen) ? (int) $this->unseen : 0, // dari append
             'created_at' => $this->created_at?->toISOString(),
             'updated_at' => $this->updated_at?->toISOString(),
         ];

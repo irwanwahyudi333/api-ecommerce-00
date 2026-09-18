@@ -14,8 +14,8 @@ final class CheckoutResource extends JsonResource
      *     total_tax: float,
      *     shipping_charge: float,
      *     unavailable_products: array<int, int>,
-     *     wallet_amount: float,
-     *     wallet_currency: string,
+     *     wallet_amount: float|int,
+     *     wallet_currency: float|string,
      * } $resource
      */
     public function __construct($resource)

@@ -10,6 +10,7 @@ use App\Modules\BecameSeller\DTO\BecameSellerData;
 use App\Modules\BecameSeller\Http\Requests\BecameSellersRequest;
 use App\Modules\BecameSeller\Services\BecameSellerService;
 use App\Modules\BecameSeller\Services\CommissionService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 
@@ -20,9 +21,10 @@ class BecameSellerController extends BaseController
         private CommissionService $commissionService
     ) {}
 
-    public function index(Request $request)
+    public function index(Request $request): JsonResponse
     {
-        $language = $request->language ?? config('shop.default_language', 'id');
+        $lang = $request->language ?? config('shop.default_language', 'id');
+        $language = is_scalar($lang) ? (string) $lang : 'id';
         $cacheKey = 'cached_became_seller_'.$language;
         $data = Cache::rememberForever($cacheKey, function () use ($language) {
             return [
@@ -34,24 +36,29 @@ class BecameSellerController extends BaseController
         return $this->sendSuccess($data, 'Became seller data');
     }
 
-    public function store(BecameSellersRequest $request)
+    public function store(BecameSellersRequest $request): JsonResponse
     {
         $this->authorize('create', BecameSeller::class);
-        $language = $request->language ?? config('shop.default_language', 'id');
+        $lang = $request->language ?? config('shop.default_language', 'id');
+        $language = is_scalar($lang) ? (string) $lang : 'id';
         $cacheKey = 'cached_became_seller_'.$language;
         Cache::forget($cacheKey);
 
         if ($request->has('commissions')) {
-            $this->commissionService->storeCommissions($request->commissions, $language);
+            /** @var array<int, array<string, mixed>> $commissions */
+            $commissions = $request->commissions;
+            $this->commissionService->storeCommissions($commissions, $language);
         }
 
-        $data = BecameSellerData::fromRequest($request->only(['page_options', 'language']));
+        /** @var array<string, mixed> $reqData */
+        $reqData = $request->only(['page_options', 'language']);
+        $data = BecameSellerData::fromRequest($reqData);
         $becomeSeller = $this->becameSellerService->storeOrUpdate($data);
 
         return $this->sendSuccess($becomeSeller, 'Became seller data saved', 201);
     }
 
-    public function show($id)
+    public function show(int|string $id): JsonResponse
     {
         $settings = $this->becameSellerService->getFirst();
         if (! $settings) {
@@ -61,19 +68,24 @@ class BecameSellerController extends BaseController
         return $this->sendSuccess($settings, 'Became seller detail');
     }
 
-    public function update(BecameSellersRequest $request, $id)
+    public function update(BecameSellersRequest $request, int|string $id): JsonResponse
     {
         $this->authorize('update', BecameSeller::class);
-        $language = $request->language ?? config('shop.default_language', 'id');
-        $data = BecameSellerData::fromRequest($request->only(['page_options', 'language']));
+        $lang = $request->language ?? config('shop.default_language', 'id');
+        $language = is_scalar($lang) ? (string) $lang : 'id';
+
+        /** @var array<string, mixed> $reqData */
+        $reqData = $request->only(['page_options', 'language']);
+        $data = BecameSellerData::fromRequest($reqData);
         $updated = $this->becameSellerService->storeOrUpdate($data);
         Cache::forget('cached_became_seller_'.$language);
 
         return $this->sendSuccess($updated, 'Became seller data updated');
     }
 
-    public function destroy($id)
+    public function destroy(int|string $id): JsonResponse
     {
-        throw new \Exception(config('notice.ACTION_NOT_VALID'));
+        $msg = config('notice.ACTION_NOT_VALID');
+        throw new \Exception(is_scalar($msg) ? (string) $msg : 'Action not valid');
     }
 }

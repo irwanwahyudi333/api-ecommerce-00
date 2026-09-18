@@ -4,11 +4,20 @@ declare(strict_types=1);
 
 namespace App\Modules\Category\Http\Resources;
 
+use App\Models\Category;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/**
+ * @property Category $resource
+ */
 class CategoryResource extends JsonResource
 {
-    public function toArray($request)
+    /**
+     * @param  Request  $request
+     * @return array<string, mixed>
+     */
+    public function toArray($request): array
     {
         return [
             'id' => $this->resource->id,
@@ -23,13 +32,13 @@ class CategoryResource extends JsonResource
             'details' => $this->resource->details,
             'image' => $this->resource->image,
             'icon' => $this->resource->icon,
-            'type_id' => $this->resource->type_id,
+            'type_id' => $this->resource->getAttribute('type_id'),
             'banner_image' => $this->resource->banner_image,
             'type' => $this->whenLoaded(
                 'type',
                 fn () => [
-                    'id' => $this->resource->type->id,
-                    'name' => $this->resource->type->name,
+                    'id' => $this->resource->type?->getAttribute('id'),
+                    'name' => $this->resource->type?->getAttribute('name'),
                 ]
             ),
         ];

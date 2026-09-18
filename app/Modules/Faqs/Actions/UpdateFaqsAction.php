@@ -13,6 +13,6 @@ class UpdateFaqsAction
     {
         $faqs->update($data->toArray());
 
-        return $faqs->fresh();
+        return $faqs->refresh();
     }
 }

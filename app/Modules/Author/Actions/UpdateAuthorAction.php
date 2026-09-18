@@ -24,6 +24,9 @@ final class UpdateAuthorAction
 
         $author->update($attributes);
 
-        return $author->fresh();
+        /** @var Author $updatedAuthor */
+        $updatedAuthor = $author->fresh();
+
+        return $updatedAuthor;
     }
 }

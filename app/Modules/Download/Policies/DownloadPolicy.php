@@ -15,7 +15,7 @@ final class DownloadPolicy
 
     public function viewAny(User $user): bool
     {
-        return $user !== null;
+        return true;
     }
 
     public function view(User $user, OrderedFile $orderedFile): bool
@@ -30,6 +30,9 @@ final class DownloadPolicy
 
     public function download(User $user, DigitalFile $digitalFile): bool
     {
-        return $digitalFile->orderedFile && $digitalFile->orderedFile->customer_id === $user->id;
+        /** @var OrderedFile|null $orderedFile */
+        $orderedFile = $digitalFile->orderedFile;
+
+        return $orderedFile && $orderedFile->customer_id === $user->id;
     }
 }

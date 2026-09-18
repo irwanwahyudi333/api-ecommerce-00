@@ -6,7 +6,7 @@ namespace App\Modules\Conversation\Services;
 
 use App\Enums\Permission;
 use App\Models\Conversation;
-use Illuminate\Contracts\Auth\Authenticatable;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 
 // Used for pagination
@@ -18,7 +18,7 @@ final class ConversationQueryService
      *
      * @return Builder<Conversation>
      */
-    public function getUserConversations(Authenticatable $user): Builder
+    public function getUserConversations(User $user): Builder
     {
         // Ambil ID toko yang dimiliki (store owner) atau tempat staff bekerja
         $shopIds = [];

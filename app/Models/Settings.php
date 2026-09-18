@@ -16,7 +16,11 @@ use Illuminate\Support\Facades\Cache;
  *     currency?: string,
  *     currencyOptions?: array{
  *         formation?: string
- *     }
+ *     },
+ *     minimumOrderAmount?: float|int,
+ *     freeShipping?: bool,
+ *     freeShippingAmount?: float|int,
+ *     shippingClass?: int|string
  * }
  *
  * @property SettingsOptions $options

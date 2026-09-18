@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Coupon\Http\Requests;
 
 use App\Enums\CouponType;
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -15,9 +16,13 @@ class CouponUpdateRequest extends FormRequest
         return true;
     }
 
+    /**
+     * @return array<string, ValidationRule|array<mixed>|string>
+     */
     public function rules(): array
     {
-        $language = $this->language ?? config('shop.default_language', 'id');
+        $langInput = $this->input('language', config('shop.default_language', 'id'));
+        $language = is_string($langInput) ? $langInput : 'id';
         $couponId = $this->route('id'); // ambil id dari route
 
         $amountRules = ($this->type === 'percentage')

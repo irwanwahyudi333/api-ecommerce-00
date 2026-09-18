@@ -11,10 +11,13 @@ class DownloadData
         public readonly int $user_id,
     ) {}
 
+    /**
+     * @param  array<string, mixed>  $data
+     */
     public static function fromRequest(array $data, int $userId): self
     {
         return new self(
-            digital_file_id: $data['digital_file_id'],
+            digital_file_id: is_numeric($data['digital_file_id']) ? (int) $data['digital_file_id'] : 0,
             user_id: $userId,
         );
     }

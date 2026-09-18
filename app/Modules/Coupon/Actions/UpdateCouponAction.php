@@ -13,6 +13,6 @@ class UpdateCouponAction
     {
         $coupon->update($data->toArray());
 
-        return $coupon->fresh();
+        return clone $coupon->refresh();
     }
 }

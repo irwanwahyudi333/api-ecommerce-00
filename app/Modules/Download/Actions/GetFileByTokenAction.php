@@ -18,6 +18,6 @@ class GetFileByTokenAction
         $digitalFile = $downloadToken->file;
         $downloadToken->delete();
 
-        return $digitalFile;
+        return $digitalFile instanceof DigitalFile ? $digitalFile : null;
     }
 }

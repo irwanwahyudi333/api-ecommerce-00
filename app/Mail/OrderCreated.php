@@ -24,7 +24,7 @@ class OrderCreated extends Mailable implements ShouldQueue
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Order Created #'.$this->order->tracking_number,
+            subject: __('order.created_subject', ['ORDER_TRACKING_NUMBER' => $this->order->tracking_number], $this->order->language),
         );
     }
 

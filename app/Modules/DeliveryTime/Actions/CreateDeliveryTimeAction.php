@@ -15,7 +15,7 @@ final class CreateDeliveryTimeAction
     {
         $attributes = array_filter([
             'title' => $data->title,
-            'slug' => $data->slug ?? Str::slug($data->title),
+            'slug' => $data->slug ?? ($data->title !== null ? Str::slug($data->title) : null),
             'language' => $data->language,
             'description' => $data->description,
             'icon' => $data->icon,

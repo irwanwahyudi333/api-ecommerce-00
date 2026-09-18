@@ -6,8 +6,20 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 
+/**
+ * @property int $id
+ * @property int $user_id
+ * @property int $shop_id
+ * @property User|null $user
+ * @property Shop|null $shop
+ * @property Message|null $latest_message
+ * @property string|int $unseen
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ */
 class Conversation extends Model
 {
     use HasFactory;
