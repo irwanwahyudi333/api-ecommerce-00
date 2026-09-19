@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Modules\Product\Exceptions\InventoryException;
 use App\Modules\Shop\Events\ProductLowStock;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -17,6 +18,54 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\DB;
 use Laravel\Scout\Searchable;
 
+/**
+ * @property int $id
+ * @property string $name
+ * @property string $slug
+ * @property Type|null $type
+ * @property Shop|null $shop
+ * @property Author|null $author
+ * @property Manufacturer|null $manufacturer
+ * @property string $language
+ * @property string $product_type
+ * @property mixed $translated_languages
+ * @property mixed $metas
+ * @property mixed $digital_file
+ * @property mixed $variation_options
+ * @property Collection<int, AttributeValue> $variations
+ * @property Collection<int, Product> $related_products
+ * @property string|null $description
+ * @property bool $in_stock
+ * @property bool $is_taxable
+ * @property bool $is_digital
+ * @property bool $is_external
+ * @property string|null $external_product_url
+ * @property string|null $external_product_button_text
+ * @property float $sale_price
+ * @property float|null $max_price
+ * @property float|null $min_price
+ * @property mixed $ratings
+ * @property int $total_reviews
+ * @property int $rating_count
+ * @property mixed $my_review
+ * @property bool $in_wishlist
+ * @property string|null $sku
+ * @property mixed $gallery
+ * @property mixed $image
+ * @property mixed $video
+ * @property string $status
+ * @property float|null $height
+ * @property float|null $length
+ * @property float|null $width
+ * @property float $price
+ * @property int $quantity
+ * @property string|null $unit
+ * @property bool $in_flash_sale
+ * @property bool|null $is_rental
+ *
+ * @method void setMeta(string $key, mixed $value = null)
+ * @method \Illuminate\Database\Eloquent\Relations\HasMany metas()
+ */
 class Product extends Model
 {
     use HasFactory, Searchable, SoftDeletes;

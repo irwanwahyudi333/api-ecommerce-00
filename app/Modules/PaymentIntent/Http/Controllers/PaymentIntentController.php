@@ -18,9 +18,9 @@ class PaymentIntentController extends BaseController
     /**
      * GET /payment-intent
      */
-    public function getPaymentIntent(GetPaymentIntentRequest $request)
+    public function getPaymentIntent(GetPaymentIntentRequest $request): PaymentIntentResource
     {
-        $settings = Settings::first();
+        $settings = Settings::getData();
 
         // Check if guest checkout is allowed
         if (! $request->user() && ! ($settings->options['guestCheckout'] ?? false)) {

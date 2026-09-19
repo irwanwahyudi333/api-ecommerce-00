@@ -21,10 +21,10 @@ class PaymentIntentService
     public function getOrCreatePaymentIntent(Request $request, Settings $settings): object
     {
         $data = $request->all();
-        $orderTrackingNumber = $data['tracking_number'];
-        $requestedGateway = $data['payment_gateway'];
+        $orderTrackingNumber = $request->string('tracking_number')->toString();
+        $requestedGateway = $request->string('payment_gateway')->toString();
         $order = $this->fetchOrderByTrackingNumber($orderTrackingNumber);
-        $initialGateway = $order->payment_gateway;
+        $initialGateway = (string) $order->payment_gateway;
 
         // Determine the gateway to use
         if ($requestedGateway !== $initialGateway) {
@@ -41,8 +41,9 @@ class PaymentIntentService
         $exists = $this->paymentIntentExists($orderTrackingNumber, $chosenGateway);
         if (! $exists) {
             $newIntent = $this->savePaymentIntent($order, $chosenGateway, $request);
-            if (($data['recall_gateway'] ?? false) && $newIntent) {
-                $this->deleteOlderPaymentIntent($orderTrackingNumber, ucfirst(strtolower($order->payment_gateway)));
+            $recallGateway = isset($data['recall_gateway']) ? (bool) $data['recall_gateway'] : false;
+            if ($recallGateway) {
+                $this->deleteOlderPaymentIntent($orderTrackingNumber, ucfirst(strtolower((string) $order->payment_gateway)));
                 $this->updateOrderPaymentGateway($order, $initialGateway, $chosenGateway);
             }
 
@@ -60,10 +61,10 @@ class PaymentIntentService
      */
     protected function getActiveGatewayFromSettings(Settings $settings, string $requestedGateway): ?string
     {
-        if (isset($settings->options['paymentGateway']) && is_array($settings->options['paymentGateway'])) {
+        if (isset($settings->options['paymentGateway'])) {
             foreach ($settings->options['paymentGateway'] as $gw) {
-                if (strtoupper($gw['name'] ?? '') === strtoupper($requestedGateway)) {
-                    return ucfirst(strtolower($gw['name']));
+                if (strtoupper((string) ($gw['name'] ?? '')) === strtoupper($requestedGateway)) {
+                    return ucfirst(strtolower((string) ($gw['name'] ?? '')));
                 }
             }
         }
@@ -134,7 +135,8 @@ class PaymentIntentService
             ->first();
 
         if (! $order) {
-            throw new HttpException(404, config('notice.NOT_FOUND'));
+            $msg = config('notice.NOT_FOUND');
+            throw new HttpException(404, is_string($msg) ? $msg : 'Not Found');
         }
 
         return $order;

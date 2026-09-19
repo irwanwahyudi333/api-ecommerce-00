@@ -8,6 +8,7 @@ use App\Enums\ProductType;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\Variation;
+use Illuminate\Database\Eloquent\Relations\Pivot;
 use Illuminate\Support\Facades\DB;
 
 class OrderInventoryService
@@ -19,12 +20,21 @@ class OrderInventoryService
 
         // Kumpulkan data ke memori terlebih dahulu untuk optimasi query database
         foreach ($order->products as $product) {
-            $quantity = (int) $product->pivot->order_quantity;
-            $productIncrements[$product->id] = ($productIncrements[$product->id] ?? 0) + $quantity;
+            /** @var Product $product */
+            /** @var Pivot|null $pivot */
+            $pivot = $product->getAttribute('pivot');
+            $orderQty = $pivot ? $pivot->getAttribute('order_quantity') : 1;
+            $quantity = is_numeric($orderQty) ? (int) $orderQty : 1;
 
-            if ($product->product_type === ProductType::VARIABLE->value && isset($product->pivot->variation_option_id)) {
-                $varId = (int) $product->pivot->variation_option_id;
-                $variationIncrements[$varId] = ($variationIncrements[$varId] ?? 0) + $quantity;
+            $productId = $product->id;
+            $productIncrements[$productId] = ($productIncrements[$productId] ?? 0) + $quantity;
+
+            if ($product->product_type === ProductType::VARIABLE->value && $pivot) {
+                $varOption = $pivot->getAttribute('variation_option_id');
+                if ($varOption) {
+                    $varId = is_numeric($varOption) ? (int) $varOption : 0;
+                    $variationIncrements[$varId] = ($variationIncrements[$varId] ?? 0) + $quantity;
+                }
             }
         }
 

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Payment\Factory;
 
-use App\Modules\Payment\Contracts\PaymentProviderInterface;
+use App\Services\Payment\Contracts\PaymentProviderInterface;
 use App\Services\Payment\Providers\MidtransProvider;
 use App\Services\Payment\Providers\StripeProvider;
 use App\Services\Payment\Providers\XenditProvider;
@@ -28,9 +28,17 @@ class PaymentProviderFactory
 
         $class = self::GATEWAYS[$gateway];
 
-        return new $class;
+        $classInstance = app($class);
+        if (! $classInstance instanceof PaymentProviderInterface) {
+            throw new InvalidArgumentException("Provider {$class} must implement PaymentProviderInterface");
+        }
+
+        return $classInstance;
     }
 
+    /**
+     * @return array<int, string>
+     */
     public static function getAvailableGateways(): array
     {
         return array_keys(self::GATEWAYS);

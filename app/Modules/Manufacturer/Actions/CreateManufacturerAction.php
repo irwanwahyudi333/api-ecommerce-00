@@ -12,7 +12,7 @@ class CreateManufacturerAction
 {
     public function execute(ManufacturerData $data): Manufacturer
     {
-        $slug = $data->slug ?? Str::slug($data->name);
+        $slug = $data->slug ?? Str::slug((string) $data->name);
 
         // Proteksi duplikasi slug manual pada bahasa yang sama
         $count = Manufacturer::where('slug', 'like', "{$slug}%")

@@ -11,6 +11,7 @@ use App\Modules\Product\Http\Resources\ProductResource;
 use App\Modules\Product\Services\ProductCacheService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class ProductQueryController extends BaseController
 {
@@ -22,7 +23,8 @@ class ProductQueryController extends BaseController
     {
         $this->authorize('viewAny', Product::class);
 
-        $perPage = (int) $request->get('limit', 15);
+        $limitParam = $request->get('limit', 15);
+        $perPage = is_numeric($limitParam) ? (int) $limitParam : 15;
         $products = $this->cacheService->getCachedProducts($request, $perPage);
 
         return $this->sendPaginated(
@@ -73,15 +75,22 @@ class ProductQueryController extends BaseController
     {
         $this->authorize('viewAny', Product::class);
 
-        $query = $request->get('q', '');
-        $perPage = (int) $request->get('limit', 15);
+        $qParam = $request->get('q', '');
+        $query = is_string($qParam) ? $qParam : '';
+        $limitParam = $request->get('limit', 15);
+        $perPage = is_numeric($limitParam) ? (int) $limitParam : 15;
+        $sort = $request->get('sort', 'created_at');
+        $sortColumn = is_string($sort) ? $sort : 'created_at';
+        $order = $request->get('order', 'desc');
+        $sortOrder = is_string($order) ? $order : 'desc';
 
+        /** @var LengthAwarePaginator<int, Product> $products */
         $products = Product::search($query)
             ->when($request->filled('category'), fn ($q) => $q->where('categories', $request->category))
-            ->when($request->filled('price_min'), fn ($q) => $q->where('price', '>=', (float) $request->price_min))
-            ->when($request->filled('price_max'), fn ($q) => $q->where('price', '<=', (float) $request->price_max))
+            ->when($request->filled('price_min'), fn ($q) => $q->where('price', '>=', is_numeric($request->price_min) ? (float) $request->price_min : 0.0))
+            ->when($request->filled('price_max'), fn ($q) => $q->where('price', '<=', is_numeric($request->price_max) ? (float) $request->price_max : 0.0))
             ->when($request->filled('in_stock'), fn ($q) => $q->where('in_stock', $request->boolean('in_stock')))
-            ->orderBy($request->get('sort', 'created_at'), $request->get('order', 'desc'))
+            ->orderBy($sortColumn, $sortOrder)
             ->paginate($perPage);
 
         return $this->sendPaginated(

@@ -6,6 +6,7 @@ namespace App\Modules\Product\Http\Controllers;
 
 use App\Http\Controllers\BaseController;
 use App\Models\Product;
+use App\Models\User;
 use App\Modules\Product\DTO\ProductData;
 use App\Modules\Product\Http\Requests\ProductCreateRequest;
 use App\Modules\Product\Http\Requests\ProductUpdateRequest;
@@ -24,8 +25,13 @@ class ProductCrudController extends BaseController
     {
         $this->authorize('create', Product::class);
 
-        $data = ProductData::fromRequest($request);
-        $product = $this->crudService->createProduct($data, $request->user());
+        /** @var array<string, mixed> $validated */
+        $validated = $request->validated();
+        $data = ProductData::fromRequest($validated);
+
+        /** @var User $user */
+        $user = $request->user();
+        $product = $this->crudService->createProduct($data, $user);
 
         return $this->sendSuccess(
             new GetSingleProductResource($product),
@@ -39,8 +45,13 @@ class ProductCrudController extends BaseController
         $product = Product::findOrFail($id);
         $this->authorize('update', $product);
 
-        $data = ProductData::fromRequest($request);
-        $updatedProduct = $this->crudService->updateProduct($id, $data, $request->user());
+        /** @var array<string, mixed> $validated */
+        $validated = $request->validated();
+        $data = ProductData::fromRequest($validated);
+
+        /** @var User $user */
+        $user = $request->user();
+        $updatedProduct = $this->crudService->updateProduct($id, $data, $user);
 
         return $this->sendSuccess(
             new GetSingleProductResource($updatedProduct),
@@ -53,7 +64,9 @@ class ProductCrudController extends BaseController
         $product = Product::findOrFail($id);
         $this->authorize('delete', $product);
 
-        $this->crudService->deleteProduct($id, $request->user());
+        /** @var User $user */
+        $user = $request->user();
+        $this->crudService->deleteProduct($id, $user);
 
         return $this->sendSuccess(
             null,
@@ -70,8 +83,12 @@ class ProductCrudController extends BaseController
         $product = Product::findOrFail($id);
         $this->authorize('updateStock', $product);
 
-        $quantity = (int) $request->get('quantity');
-        $updatedProduct = $this->crudService->updateProductStock($id, $quantity, $request->user());
+        $quantityParam = $request->get('quantity');
+        $quantity = is_numeric($quantityParam) ? (int) $quantityParam : 0;
+
+        /** @var User $user */
+        $user = $request->user();
+        $updatedProduct = $this->crudService->updateProductStock($id, $quantity, $user);
 
         return $this->sendSuccess(
             new GetSingleProductResource($updatedProduct),
@@ -89,7 +106,7 @@ class ProductCrudController extends BaseController
         $this->authorize('update', $product);
 
         $status = $request->get('status');
-        $product->status = $status;
+        $product->status = is_string($status) ? $status : 'draft';
         $product->save();
 
         return $this->sendSuccess(

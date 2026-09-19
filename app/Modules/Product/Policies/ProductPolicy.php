@@ -22,6 +22,9 @@ class ProductPolicy
         if ($product->status === 'publish' || $product->visibility === 'visibility_public') {
             return true;
         }
+        if ($user === null) {
+            return false;
+        }
 
         return $this->update($user, $product);
     }

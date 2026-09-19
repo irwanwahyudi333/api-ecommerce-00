@@ -18,7 +18,7 @@ final class PaymentGatewayFactory implements PaymentGatewayFactoryInterface
     private const CACHE_TTL = 86400; // 24 hours
 
     /**
-     * @var array<string, class-string<PaymentProviderInterface>>
+     * @var array<string, string>
      */
     private array $gatewayMap = [
         'stripe' => StripeProvider::class,
@@ -42,7 +42,10 @@ final class PaymentGatewayFactory implements PaymentGatewayFactoryInterface
             );
         }
 
-        return app($providerClass);
+        /** @var PaymentProviderInterface $provider */
+        $provider = app($providerClass);
+
+        return $provider;
     }
 
     public function getAvailableGateways(): array

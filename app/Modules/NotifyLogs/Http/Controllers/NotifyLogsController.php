@@ -6,11 +6,14 @@ namespace App\Modules\NotifyLogs\Http\Controllers;
 
 use App\Http\Controllers\BaseController;
 use App\Models\NotifyLogs;
+use App\Models\User;
 use App\Modules\NotifyLogs\Http\Requests\MarkAllAsReadRequest;
 use App\Modules\NotifyLogs\Http\Requests\MarkAsReadRequest;
 use App\Modules\NotifyLogs\Http\Resources\NotifyLogResource;
 use App\Modules\NotifyLogs\Services\NotifyLogsService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class NotifyLogsController extends BaseController
 {
@@ -19,10 +22,11 @@ class NotifyLogsController extends BaseController
     /**
      * GET /notify-logs
      */
-    public function index(Request $request)
+    public function index(Request $request): AnonymousResourceCollection
     {
+        /** @var User|null $user */
         $user = $request->user();
-        $limit = (int) ($request->limit ?? 10);
+        $limit = $request->integer('limit', 10);
         $logs = $this->notifyService->getNotifyLogsQuery($request, $user)->paginate($limit);
 
         return NotifyLogResource::collection($logs);
@@ -31,7 +35,7 @@ class NotifyLogsController extends BaseController
     /**
      * GET /notify-logs/{id}
      */
-    public function show(Request $request, int $id)
+    public function show(Request $request, int $id): NotifyLogResource
     {
         $log = $this->notifyService->findOrFail($id);
         $this->authorize('view', $log);
@@ -42,7 +46,7 @@ class NotifyLogsController extends BaseController
     /**
      * DELETE /notify-logs/{id}
      */
-    public function destroy(Request $request, int $id)
+    public function destroy(Request $request, int $id): JsonResponse
     {
         $log = $this->notifyService->findOrFail($id);
         $this->authorize('delete', $log);
@@ -55,9 +59,9 @@ class NotifyLogsController extends BaseController
     /**
      * POST /notify-logs/read
      */
-    public function readNotifyLogs(MarkAsReadRequest $request)
+    public function readNotifyLogs(MarkAsReadRequest $request): NotifyLogResource
     {
-        $log = $this->notifyService->findOrFail($request->id);
+        $log = $this->notifyService->findOrFail($request->integer('id'));
         $this->authorize('markAsRead', $log);
 
         $updated = $this->notifyService->markAsRead($log);
@@ -68,13 +72,13 @@ class NotifyLogsController extends BaseController
     /**
      * POST /notify-logs/read-all
      */
-    public function readAllNotifyLogs(MarkAllAsReadRequest $request)
+    public function readAllNotifyLogs(MarkAllAsReadRequest $request): AnonymousResourceCollection
     {
         $this->authorize('markAllAsRead', NotifyLogs::class);
 
         $logs = $this->notifyService->markAllAsRead(
-            $request->notify_type,
-            $request->receiver
+            $request->has('notify_type') ? $request->string('notify_type')->toString() : null,
+            $request->integer('receiver')
         );
 
         return NotifyLogResource::collection($logs);

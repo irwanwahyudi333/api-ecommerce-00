@@ -22,8 +22,12 @@ use App\Modules\Payment\Services\PaymentService;
 use App\Modules\Settings\Services\SettingsService;
 use App\Services\CurrencyFormatterService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\Response;
 use Maatwebsite\Excel\Facades\Excel;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class OrderController extends BaseController
 {
@@ -35,49 +39,69 @@ class OrderController extends BaseController
         private UpdateOrderStatusAction $updateOrderStatusAction,
     ) {}
 
-    public function index(Request $request)
+    public function index(Request $request): AnonymousResourceCollection
     {
         $this->authorize('viewAny', Order::class);
         $user = $request->user();
-        $limit = (int) ($request->limit ?? 10);
+        $limit = is_numeric($request->limit) ? (int) $request->limit : 10;
+        $user = $request->user();
+        if (! $user) {
+            throw new \Exception('Unauthenticated');
+        }
         $orders = $this->orderService->getOrdersQuery($request, $user)->paginate($limit);
 
         return OrderResource::collection($orders);
     }
 
-    public function store(CreateOrderRequest $request)
+    public function store(CreateOrderRequest $request): OrderResource
     {
         $this->authorize('create', Order::class);
         $settings = Settings::first();
-        $data = OrderData::fromRequest($request->validated());
-        $order = $this->createOrderAction->execute($data, $settings, $request->user());
+        if (! $settings instanceof Settings) {
+            throw new \Exception('Settings not found');
+        }
+        /** @var array<string, mixed> $validated */
+        $validated = $request->validated();
+        $data = OrderData::fromRequest($validated);
+        $user = $request->user();
+        if (! $user) {
+            throw new \Exception('Unauthenticated');
+        }
+        $order = $this->createOrderAction->execute($data, $settings, $user);
 
         return new OrderResource($order);
     }
 
-    public function show(Request $request, string $params)
+    public function show(Request $request, string $params): OrderResource
     {
-        $language = $request->language ?? config('shop.default_language', 'id');
-        $order = $this->orderService->getOrderByTrackingOrId($params, $language, $request->user());
+        $defaultLang = is_string(config('shop.default_language', 'id')) ? config('shop.default_language', 'id') : 'id';
+        $language = is_string($request->language) ? $request->language : $defaultLang;
+        $user = $request->user();
+        if (! $user) {
+            throw new \Exception('Unauthenticated');
+        }
+        $order = $this->orderService->getOrderByTrackingOrId($params, $language, $user);
         $this->authorize('view', $order);
 
         if (! in_array($order->payment_gateway, ['cash', 'cash_on_delivery', 'full_wallet_payment'], true)) {
-            $order->payment_intent = $this->paymentService->attachPaymentIntent($order->tracking_number);
+            $tracking = is_scalar($order->tracking_number) ? (string) $order->tracking_number : '';
+            $order->setAttribute('payment_intent', $this->paymentService->attachPaymentIntent($tracking));
         }
 
         return new OrderResource($order);
     }
 
-    public function update(UpdateOrderRequest $request, int $id)
+    public function update(UpdateOrderRequest $request, int $id): JsonResponse
     {
         $order = Order::findOrFail($id);
         $this->authorize('update', $order);
-        $updated = $this->updateOrderStatusAction->execute($order, $request->order_status);
+        $status = is_string($request->order_status) ? $request->order_status : '';
+        $updated = $this->updateOrderStatusAction->execute($order, $status);
 
         return $this->sendSuccess(new OrderResource($updated), 'Order updated');
     }
 
-    public function destroy(Request $request, int $id)
+    public function destroy(Request $request, int $id): JsonResponse
     {
         $order = Order::findOrFail($id);
         $this->authorize('delete', $order);
@@ -86,22 +110,28 @@ class OrderController extends BaseController
         return $this->sendSuccess(null, 'Order deleted');
     }
 
-    public function exportOrderUrl(Request $request, $shop_id = null)
+    public function exportOrderUrl(Request $request, ?int $shop_id = null): JsonResponse
     {
-        $this->authorize('export', [Order::class, $request->shop_id]);
+        $this->authorize('export', [Order::class, $shop_id]);
         $user = $request->user();
-        $url = $this->identityService->getExportToken($user->id, $request->shop_id ? (int) $request->shop_id : null);
+        if (! $user) {
+            throw new \Exception('Unauthenticated');
+        }
+        $url = $this->identityService->getExportToken((int) $user->id, $shop_id);
 
         return response()->json(['url' => $url]);
     }
 
-    public function exportOrder(Request $request, $token)
+    public function exportOrder(Request $request, string $token): BinaryFileResponse
     {
+        $user = $request->user();
         $downloadToken = DownloadToken::where('token', $token)
-            ->where('user_id', $request->user()?->id)
+            ->where('user_id', $user ? $user->getAuthIdentifier() : null)
             ->firstOrFail();
 
-        $shopId = json_decode($downloadToken->payload, true);
+        $payload = is_array($downloadToken->payload) ? $downloadToken->payload : [];
+        $shopId = $payload['shop_id'] ?? null;
+        $shopId = is_numeric($shopId) ? (int) $shopId : null;
         $downloadToken->delete();
 
         $query = Order::with(['customer', 'shop']);
@@ -122,50 +152,56 @@ class OrderController extends BaseController
         );
     }
 
-    public function downloadInvoiceUrl(Request $request)
+    public function downloadInvoiceUrl(Request $request): JsonResponse
     {
         $this->authorize('export', [Order::class, $request->shop_id]);
         $request->validate(['order_id' => 'required|integer']);
         $user = $request->user();
-        $language = $request->language ?? config('shop.default_language', 'id');
-        $isRtl = $request->is_rtl ?? false;
-        $translatedText = $request->translated_text ?? [];
+        if (! $user) {
+            throw new \Exception('Unauthenticated');
+        }
+        $language = is_string($request->language) ? $request->language : config('shop.default_language', 'id');
+        $isRtl = (bool) $request->is_rtl;
+        $translatedText = is_array($request->translated_text) ? $request->translated_text : [];
 
         $url = $this->identityService->getInvoiceTokenSecure(
             $user->id,
-            (int) $request->order_id,
-            $language,
+            is_numeric($request->order_id) ? (int) $request->order_id : 0,
+            is_scalar($language) ? (string) $language : '',
             $translatedText,
-            (bool) $isRtl
+            $isRtl
         );
 
         return response()->json(['url' => $url]);
     }
 
-    public function downloadInvoice(Request $request, $token)
+    public function downloadInvoice(Request $request, string $token): Response
     {
+        $user = $request->user();
         $downloadToken = DownloadToken::where('token', $token)
-            ->where('user_id', $request->user()?->id)
+            ->where('user_id', $user ? $user->getAuthIdentifier() : null)
             ->firstOrFail();
 
-        $payload = json_decode($downloadToken->payload, true);
+        $payload = is_array($downloadToken->payload) ? $downloadToken->payload : [];
         $downloadToken->delete();
 
+        $orderId = isset($payload['order_id']) ? $payload['order_id'] : null;
+
         $order = Order::with(['products', 'children.shop', 'parent_order', 'wallet_point'])
-            ->where('id', $payload['order_id'])
-            ->orWhere('tracking_number', $payload['order_id'])
+            ->where('id', $orderId)
+            ->orWhere('tracking_number', $orderId)
             ->firstOrFail();
 
-        $settings = Settings::getData($payload['language'] ?? config('shop.default_language', 'id'));
+        $settings = Settings::getData(isset($payload['language']) && is_scalar($payload['language']) ? (string) $payload['language'] : (is_string(config('shop.default_language', 'id')) ? config('shop.default_language', 'id') : 'id'));
         $invoiceData = [
             'order' => $order,
             'settings' => $settings,
-            'translated_text' => $payload['translated_text'],
-            'is_rtl' => $payload['is_rtl'],
-            'language' => $payload['language'],
+            'translated_text' => isset($payload['translated_text']) && is_array($payload['translated_text']) ? $payload['translated_text'] : [],
+            'is_rtl' => isset($payload['is_rtl']) ? (bool) $payload['is_rtl'] : false,
+            'language' => isset($payload['language']) && is_scalar($payload['language']) ? (string) $payload['language'] : 'id',
         ];
         $pdf = Pdf::loadView('pdf.order-invoice', $invoiceData);
 
-        return $pdf->download('invoice-order-'.$payload['order_id'].'.pdf');
+        return $pdf->download('invoice-order-'.(is_scalar($orderId) ? $orderId : 'unknown').'.pdf');
     }
 }

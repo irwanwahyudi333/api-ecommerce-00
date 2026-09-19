@@ -58,7 +58,8 @@ class ProductMetricController extends BaseController
     {
         $this->authorize('viewMetrics', Product::class);
 
-        $threshold = (int) $request->get('threshold', 10);
+        $thresholdParam = $request->get('threshold', 10);
+        $threshold = is_numeric($thresholdParam) ? (int) $thresholdParam : 10;
         $cacheKey = 'metrics:low-stock:'.$threshold;
 
         $products = Cache::tags(['products', 'metrics'])
@@ -76,8 +77,9 @@ class ProductMetricController extends BaseController
     {
         $this->authorize('viewMetrics', Product::class);
 
-        $shopId = $request->get('shop_id');
-        $period = $request->get('period', 'week');
+        $shopId = is_numeric($request->get('shop_id')) ? (int) $request->get('shop_id') : 0;
+        $periodParam = $request->get('period', 'week');
+        $period = is_string($periodParam) ? $periodParam : 'week';
 
         $cacheKey = "metrics:sales:{$shopId}:{$period}";
 

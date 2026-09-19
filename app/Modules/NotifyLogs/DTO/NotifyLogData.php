@@ -16,19 +16,33 @@ final class NotifyLogData
         public readonly string $notify_tracker,
     ) {}
 
+    /**
+     * @param array{
+     *     receiver: int|string,
+     *     sender?: int|string|null,
+     *     notify_type: string,
+     *     notify_receiver_type: string,
+     *     is_read?: bool,
+     *     notify_text: string,
+     *     notify_tracker: string
+     * } $data
+     */
     public static function fromArray(array $data): self
     {
         return new self(
-            receiver: $data['receiver'],
-            sender: $data['sender'] ?? null,
-            notify_type: $data['notify_type'],
-            notify_receiver_type: $data['notify_receiver_type'],
-            is_read: $data['is_read'] ?? false,
-            notify_text: $data['notify_text'],
-            notify_tracker: $data['notify_tracker'],
+            receiver: (int) $data['receiver'],
+            sender: isset($data['sender']) ? (int) $data['sender'] : null,
+            notify_type: (string) $data['notify_type'],
+            notify_receiver_type: (string) $data['notify_receiver_type'],
+            is_read: (bool) ($data['is_read'] ?? false),
+            notify_text: (string) $data['notify_text'],
+            notify_tracker: (string) $data['notify_tracker'],
         );
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function toArray(): array
     {
         return array_filter([

@@ -8,12 +8,12 @@ use App\Enums\Permission;
 use App\Enums\ProductStatus;
 use App\Models\Product;
 use App\Models\Shop;
+use App\Models\User;
 use App\Models\Wishlist;
 use Illuminate\Contracts\Auth\Authenticatable;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
-use Illuminate\Support\Collection;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Validation\ValidationException;
 
 class ProductService
@@ -27,11 +27,12 @@ class ProductService
      */
     public function getProductsQuery(Request $request): Builder
     {
-        $language = $request->language ?? config('shop.default_language', 'id');
+        $language = is_string($request->language) ? $request->language : (is_string(config('shop.default_language')) ? config('shop.default_language') : 'id');
         $query = Product::where('language', $language);
 
         if ($request->filled('date_range')) {
-            $parts = explode('//', (string) $request->date_range);
+            $dateRange = is_string($request->date_range) ? $request->date_range : '';
+            $parts = explode('//', $dateRange);
             if (count($parts) !== 2) {
                 throw ValidationException::withMessages([
                     'date_range' => ['Invalid date range format. Use FROM//TO'],
@@ -65,7 +66,7 @@ class ProductService
     }
 
     /**
-     * @return LengthAwarePaginator<Product>
+     * @return LengthAwarePaginator<int, Product>
      */
     public function getProducts(Request $request, int $perPage = 15): LengthAwarePaginator
     {
@@ -73,15 +74,15 @@ class ProductService
     }
 
     /**
-     * @return Collection<int, Product>
+     * @return \Illuminate\Database\Eloquent\Collection<int, Product>
      */
-    public function getRelatedProducts(Product $product, int $limit = 10, ?string $language = null): Collection
+    public function getRelatedProducts(Product $product, int $limit = 10, ?string $language = null): \Illuminate\Database\Eloquent\Collection
     {
-        $language = $language ?? config('shop.default_language', 'id');
+        $language = $language ?? (is_string(config('shop.default_language')) ? config('shop.default_language') : 'id');
         $categoryIds = $product->categories()->pluck('categories.id');
 
         if ($categoryIds->isEmpty()) {
-            return collect();
+            return new \Illuminate\Database\Eloquent\Collection;
         }
 
         return Product::where('language', $language)
@@ -106,9 +107,9 @@ class ProductService
 
     public function getProductDetail(Request $request, string $slug): Product
     {
-        $language = $request->language ?? config('shop.default_language', 'id');
+        $language = is_string($request->language) ? $request->language : (is_string(config('shop.default_language')) ? config('shop.default_language') : 'id');
         $user = $request->user();
-        $limit = (int) ($request->limit ?? 10);
+        $limit = is_numeric($request->limit) ? (int) $request->limit : 10;
 
         $product = Product::where('language', $language)
             ->where(function ($q) use ($slug) {
@@ -116,9 +117,11 @@ class ProductService
             })->firstOrFail();
 
         // Otorisasi untuk akses file digital
-        if ($request->has('with') && str_contains((string) $request->with, 'digital_file')) {
+        $withParam = is_string($request->with) ? $request->with : '';
+        if ($request->has('with') && str_contains($withParam, 'digital_file')) {
             if (! $this->hasPermission($user, $product->shop_id)) {
-                throw new \Exception(config('notice.NOT_AUTHORIZED'));
+                $notice = config('notice.NOT_AUTHORIZED');
+                throw new \Exception(is_string($notice) ? $notice : 'Not authorized');
             }
         }
 
@@ -129,12 +132,16 @@ class ProductService
     }
 
     /**
-     * @return LengthAwarePaginator<Product>
+     * @return LengthAwarePaginator<int, Product>
      */
     public function getDraftedProducts(Request $request): LengthAwarePaginator
     {
+        /** @var User|null $user */
         $user = $request->user();
-        $language = $request->language ?? config('shop.default_language', 'id');
+        if (! $user) {
+            return Product::whereRaw('1 = 0')->paginate(1);
+        }
+        $language = is_string($request->language) ? $request->language : (is_string(config('shop.default_language')) ? config('shop.default_language') : 'id');
         $query = Product::with(['type', 'shop'])
             ->where('language', $language)
             ->where('status', ProductStatus::DRAFT->value);
@@ -155,16 +162,22 @@ class ProductService
             return Product::whereRaw('1 = 0')->paginate(1);
         }
 
-        return $query->paginate($request->limit ?? 15);
+        $perPage = is_numeric($request->limit) ? (int) $request->limit : 15;
+
+        return $query->paginate($perPage);
     }
 
     /**
-     * @return LengthAwarePaginator<Product>
+     * @return LengthAwarePaginator<int, Product>
      */
     public function getLowStockProducts(Request $request): LengthAwarePaginator
     {
+        /** @var User|null $user */
         $user = $request->user();
-        $language = $request->language ?? config('shop.default_language', 'id');
+        if (! $user) {
+            return Product::whereRaw('1 = 0')->paginate(1);
+        }
+        $language = is_string($request->language) ? $request->language : (is_string(config('shop.default_language')) ? config('shop.default_language') : 'id');
         $query = Product::with(['type', 'shop'])
             ->where('language', $language)
             ->where('quantity', '<', 10)
@@ -186,23 +199,31 @@ class ProductService
             return Product::whereRaw('1 = 0')->paginate(1);
         }
 
-        return $query->paginate($request->limit ?? 15);
+        $perPage = is_numeric($request->limit) ? (int) $request->limit : 15;
+
+        return $query->paginate($perPage);
     }
 
     /**
-     * @return LengthAwarePaginator<Product>
+     * @return LengthAwarePaginator<int, Product>
      */
     public function getMyWishlists(Request $request): LengthAwarePaginator
     {
+        /** @var User $user */
         $user = $request->user();
         $productIds = Wishlist::where('user_id', $user->id)->pluck('product_id');
 
-        return Product::whereIn('id', $productIds)->paginate($request->limit ?? 10);
+        $perPage = is_numeric($request->limit) ? (int) $request->limit : 10;
+
+        return Product::whereIn('id', $productIds)->paginate($perPage);
     }
 
+    /**
+     * @param  User|null  $user
+     */
     private function hasPermission(?Authenticatable $user, ?int $shopId): bool
     {
-        if (! $user) {
+        if (! $user instanceof User) {
             return false;
         }
         if ($user->hasPermissionTo(Permission::SUPER_ADMIN->value)) {
@@ -225,6 +246,10 @@ class ProductService
         return false;
     }
 
+    /**
+     * @param  Builder<Product>  $query
+     * @return Builder<Product>
+     */
     private function applyFlashSaleFilters(Request $request, Builder $query): Builder
     {
         $user = $request->user();
@@ -233,7 +258,7 @@ class ProductService
             if ($request->searchedByUser === 'super_admin_builder') {
                 $query->where('in_flash_sale', false)
                     ->whereNull('sale_price')
-                    ->whereNotIn('id', fn ($q) => $q->select('product_id')->from('flash_sale_requests_products'))
+                    ->whereNotIn('id', fn (\Illuminate\Database\Query\Builder $q) => $q->select('product_id')->from('flash_sale_requests_products'))
                     ->when($request->filled('shop_id'), fn ($q) => $q->where('shop_id', $request->shop_id))
                     ->when($request->filled('author'), fn ($q) => $q->where('author_id', $request->author))
                     ->when($request->filled('manufacturer'), fn ($q) => $q->where('manufacturer_id', $request->manufacturer));

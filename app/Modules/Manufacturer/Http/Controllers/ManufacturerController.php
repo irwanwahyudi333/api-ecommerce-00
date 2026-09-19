@@ -11,19 +11,22 @@ use App\Modules\Manufacturer\DTO\ManufacturerData;
 use App\Modules\Manufacturer\Http\Requests\ManufacturerRequest;
 use App\Modules\Manufacturer\Http\Resources\ManufacturerResource;
 use App\Modules\Manufacturer\Services\ManufacturerService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Cache;
 
 class ManufacturerController extends BaseController
 {
     public function __construct(private ManufacturerService $manufacturerService) {}
 
-    public function index(Request $request)
+    public function index(Request $request): JsonResponse
     {
-        $limit = (int) ($request->limit ?? 15);
-        $language = $request->language ?? config('shop.default_language', 'id');
+        $limit = $request->integer('limit', 15);
+        $language = $request->string('language', is_string(config('shop.default_language')) ? config('shop.default_language') : 'id')->toString();
 
         $cacheKey = "manufacturers_{$language}_{$limit}";
+        /** @var LengthAwarePaginator<int, Manufacturer> $manufacturers */
         $manufacturers = Cache::remember($cacheKey, 3600, function () use ($language, $limit) {
             return $this->manufacturerService->getManufacturersByLanguage($language, $limit);
         });
@@ -35,7 +38,7 @@ class ManufacturerController extends BaseController
         );
     }
 
-    public function store(ManufacturerRequest $request)
+    public function store(ManufacturerRequest $request): JsonResponse
     {
         $this->authorize('create', Manufacturer::class);
         $user = $request->user();
@@ -58,9 +61,9 @@ class ManufacturerController extends BaseController
         );
     }
 
-    public function show(Request $request, string $slug)
+    public function show(Request $request, string $slug): JsonResponse
     {
-        $language = $request->language ?? config('shop.default_language', 'id');
+        $language = $request->string('language', is_string(config('shop.default_language')) ? config('shop.default_language') : 'id')->toString();
         $manufacturer = $this->manufacturerService->getManufacturerByIdOrSlug($slug, $language);
 
         return $this->sendSuccess(
@@ -69,7 +72,7 @@ class ManufacturerController extends BaseController
         );
     }
 
-    public function update(ManufacturerRequest $request, int $id)
+    public function update(ManufacturerRequest $request, int $id): JsonResponse
     {
         $manufacturer = Manufacturer::findOrFail($id);
         $this->authorize('update', $manufacturer);
@@ -92,7 +95,7 @@ class ManufacturerController extends BaseController
         );
     }
 
-    public function destroy(Request $request, int $id)
+    public function destroy(Request $request, int $id): JsonResponse
     {
         $manufacturer = Manufacturer::findOrFail($id);
         $this->authorize('delete', $manufacturer);
@@ -103,10 +106,10 @@ class ManufacturerController extends BaseController
         return $this->sendSuccess(null, 'Manufacturer deleted successfully');
     }
 
-    public function topManufacturer(Request $request)
+    public function topManufacturer(Request $request): JsonResponse
     {
-        $limit = (int) ($request->limit ?? 10);
-        $language = $request->language ?? config('shop.default_language', 'id');
+        $limit = $request->integer('limit', 10);
+        $language = $request->string('language', is_string(config('shop.default_language')) ? config('shop.default_language') : 'id')->toString();
         $cacheKey = "top_manufacturers_{$language}_{$limit}";
         $manufacturers = Cache::remember($cacheKey, 3600, function () use ($language, $limit) {
             return $this->manufacturerService->getTopManufacturers($language, $limit);

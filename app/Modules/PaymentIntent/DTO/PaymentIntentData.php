@@ -12,12 +12,15 @@ final class PaymentIntentData
         public readonly ?bool $recall_gateway = false,
     ) {}
 
+    /**
+     * @param  array{tracking_number: scalar, payment_gateway: scalar, recall_gateway?: bool}  $data
+     */
     public static function fromRequest(array $data): self
     {
         return new self(
-            tracking_number: $data['tracking_number'],
-            payment_gateway: $data['payment_gateway'],
-            recall_gateway: $data['recall_gateway'] ?? false,
+            tracking_number: (string) $data['tracking_number'],
+            payment_gateway: (string) $data['payment_gateway'],
+            recall_gateway: isset($data['recall_gateway']) ? (bool) $data['recall_gateway'] : false,
         );
     }
 }

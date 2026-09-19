@@ -7,6 +7,22 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
+/**
+ * @property int $id
+ * @property string $name
+ * @property string $slug
+ * @property string $language
+ * @property int $products_count
+ * @property bool $is_approved
+ * @property string|null $description
+ * @property string|null $website
+ * @property array|null $socials
+ * @property array|null $image
+ * @property array|null $cover_image
+ * @property array $translated_languages
+ * @property int|null $shop_id
+ * @property Type|null $type
+ */
 class Manufacturer extends Model
 {
     use HasFactory;

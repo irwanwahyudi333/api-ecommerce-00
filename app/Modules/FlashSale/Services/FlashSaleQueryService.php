@@ -16,12 +16,14 @@ final class FlashSaleQueryService
     private const CACHE_TTL_SECONDS = 3600; // 1 hour
 
     /**
-     * @return LengthAwarePaginator<FlashSale>
+     * @param  array<string, mixed>  $filters
+     * @return LengthAwarePaginator<int, FlashSale>
      */
     public function getFlashSales(array $filters, int $limit = 15): LengthAwarePaginator
     {
-        $language = $filters['language'] ?? config('shop.default_language', 'id');
-        $cacheKey = 'flash_sales_'.$language.'_'.md5(json_encode($filters)).'_'.$limit;
+        $lang = is_string($filters['language'] ?? null) ? $filters['language'] : (is_string(config('shop.default_language')) ? config('shop.default_language') : 'id');
+        $language = (string) $lang;
+        $cacheKey = 'flash_sales_'.$language.'_'.md5(json_encode($filters) ?: '').'_'.$limit;
 
         return Cache::remember(
             $cacheKey,
@@ -75,7 +77,7 @@ final class FlashSaleQueryService
     }
 
     /**
-     * @return LengthAwarePaginator<Product>
+     * @return LengthAwarePaginator<int, Product>
      */
     public function getProductsByFlashSaleSlug(string $slug, string $language, int $perPage = 10): LengthAwarePaginator
     {
@@ -97,6 +99,9 @@ final class FlashSaleQueryService
         );
     }
 
+    /**
+     * @return array<mixed>
+     */
     public function getFlashSaleInfoByProductId(int $productId): array
     {
         $cacheKey = 'flash_sale_info_product_'.$productId;

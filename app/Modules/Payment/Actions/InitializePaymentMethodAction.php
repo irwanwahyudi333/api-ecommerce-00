@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Payment\Actions;
 
+use App\Models\User;
 use App\Modules\Payment\Contracts\PaymentGatewayFactoryInterface;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Psr\Log\LoggerInterface;
@@ -15,8 +16,13 @@ final class InitializePaymentMethodAction
         private readonly LoggerInterface $logger,
     ) {}
 
+    /**
+     * @param  User  $user
+     * @return array<string, mixed>|null
+     */
     public function execute(Authenticatable $user, string $gateway): ?array
     {
+        /** @var User $user */
         try {
             $provider = $this->gatewayFactory->create($gateway);
 

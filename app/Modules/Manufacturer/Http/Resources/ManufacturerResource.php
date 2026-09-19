@@ -10,6 +10,8 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
  * @mixin Manufacturer
+ *
+ * @property Manufacturer $resource
  */
 class ManufacturerResource extends JsonResource
 {
@@ -35,9 +37,9 @@ class ManufacturerResource extends JsonResource
             'cover_image' => $this->resource->cover_image,
             'type' => $this->whenLoaded('type', function () {
                 return [
-                    'id' => $this->resource->type->id,
-                    'name' => $this->resource->type->name,
-                    'slug' => $this->resource->type->slug,
+                    'id' => $this->resource->type?->id,
+                    'name' => $this->resource->type?->name,
+                    'slug' => $this->resource->type?->slug,
                 ];
             }),
         ];

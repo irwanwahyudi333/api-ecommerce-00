@@ -2,7 +2,6 @@
 
 namespace App\Modules\PaymentMethod\Http\Requests;
 
-use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class PaymentMethodStoreRequest extends FormRequest
@@ -18,7 +17,7 @@ class PaymentMethodStoreRequest extends FormRequest
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, ValidationRule|array|string>
+     * @return array<string, mixed>
      */
     public function rules(): array
     {

@@ -9,6 +9,22 @@ use Illuminate\Validation\ValidationException;
 
 class ProductData
 {
+    /**
+     * @param  array<array-key, mixed>|null  $image
+     * @param  array<array-key, mixed>|null  $gallery
+     * @param  array<array-key, mixed>|null  $video
+     * @param  array<array-key, mixed>|null  $categories
+     * @param  array<array-key, mixed>|null  $tags
+     * @param  array<array-key, mixed>|null  $dropoff_locations
+     * @param  array<array-key, mixed>|null  $pickup_locations
+     * @param  array<array-key, mixed>|null  $persons
+     * @param  array<array-key, mixed>|null  $features
+     * @param  array<array-key, mixed>|null  $deposits
+     * @param  array<array-key, mixed>|null  $metas
+     * @param  array<array-key, mixed>|null  $variations
+     * @param  array<array-key, mixed>|null  $variation_options
+     * @param  array<array-key, mixed>|null  $digital_file
+     */
     public function __construct(
         public readonly ?string $name,
         public readonly ?string $slug,
@@ -57,57 +73,104 @@ class ProductData
         public readonly ?bool $is_rental,
     ) {}
 
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private static function getString(array $data, string $key): ?string
+    {
+        return isset($data[$key]) && is_string($data[$key]) ? $data[$key] : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private static function getFloat(array $data, string $key): ?float
+    {
+        return isset($data[$key]) && is_numeric($data[$key]) ? (float) $data[$key] : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private static function getInt(array $data, string $key): ?int
+    {
+        return isset($data[$key]) && is_numeric($data[$key]) ? (int) $data[$key] : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private static function getBool(array $data, string $key): ?bool
+    {
+        return isset($data[$key]) ? (bool) $data[$key] : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<array-key, mixed>|null
+     */
+    private static function getArray(array $data, string $key): ?array
+    {
+        return isset($data[$key]) && is_array($data[$key]) ? $data[$key] : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
     public static function fromRequest(array $data): self
     {
         return new self(
-            name: $data['name'] ?? null,
-            slug: $data['slug'] ?? null,
-            price: isset($data['price']) ? (float) $data['price'] : null,
-            sale_price: isset($data['sale_price']) ? (float) $data['sale_price'] : null,
-            max_price: isset($data['max_price']) ? (float) $data['max_price'] : null,
-            min_price: isset($data['min_price']) ? (float) $data['min_price'] : null,
-            type_id: $data['type_id'] ?? null,
-            shop_id: $data['shop_id'] ?? null,
-            author_id: $data['author_id'] ?? null,
-            manufacturer_id: $data['manufacturer_id'] ?? null,
-            language: $data['language'] ?? config('shop.default_language', 'id'),
-            product_type: $data['product_type'] ?? null,
-            quantity: $data['quantity'] ?? null,
-            unit: $data['unit'] ?? null,
-            is_digital: isset($data['is_digital']) ? (bool) $data['is_digital'] : null,
-            is_external: isset($data['is_external']) ? (bool) $data['is_external'] : null,
-            external_product_url: $data['external_product_url'] ?? null,
-            external_product_button_text: $data['external_product_button_text'] ?? null,
-            description: $data['description'] ?? null,
-            sku: $data['sku'] ?? null,
-            image: $data['image'] ?? null,
-            gallery: $data['gallery'] ?? null,
-            video: $data['video'] ?? null,
-            status: $data['status'] ?? null,
-            height: $data['height'] ?? null,
-            length: $data['length'] ?? null,
-            width: $data['width'] ?? null,
-            in_stock: isset($data['in_stock']) ? (bool) $data['in_stock'] : null,
-            is_taxable: isset($data['is_taxable']) ? (bool) $data['is_taxable'] : null,
-            sold_quantity: $data['sold_quantity'] ?? 0,
-            visibility: $data['visibility'] ?? 'visible',
-            categories: $data['categories'] ?? null,
-            tags: $data['tags'] ?? null,
-            dropoff_locations: $data['dropoff_locations'] ?? null,
-            pickup_locations: $data['pickup_locations'] ?? null,
-            persons: $data['persons'] ?? null,
-            features: $data['features'] ?? null,
-            deposits: $data['deposits'] ?? null,
-            metas: $data['metas'] ?? null,
-            variations: $data['variations'] ?? null,
-            variation_options: $data['variation_options'] ?? null,
-            digital_file: $data['digital_file'] ?? null,
-            inform_purchased_customer: (bool) ($data['inform_purchased_customer'] ?? false),
-            product_update_message: $data['product_update_message'] ?? null,
-            is_rental: isset($data['is_rental']) ? (bool) $data['is_rental'] : null,
+            name: self::getString($data, 'name'),
+            slug: self::getString($data, 'slug'),
+            price: self::getFloat($data, 'price'),
+            sale_price: self::getFloat($data, 'sale_price'),
+            max_price: self::getFloat($data, 'max_price'),
+            min_price: self::getFloat($data, 'min_price'),
+            type_id: self::getInt($data, 'type_id'),
+            shop_id: self::getInt($data, 'shop_id'),
+            author_id: self::getInt($data, 'author_id'),
+            manufacturer_id: self::getInt($data, 'manufacturer_id'),
+            language: self::getString($data, 'language') ?? (is_string(config('shop.default_language', 'id')) ? config('shop.default_language', 'id') : 'id'),
+            product_type: self::getString($data, 'product_type'),
+            quantity: self::getInt($data, 'quantity'),
+            unit: self::getString($data, 'unit'),
+            is_digital: self::getBool($data, 'is_digital'),
+            is_external: self::getBool($data, 'is_external'),
+            external_product_url: self::getString($data, 'external_product_url'),
+            external_product_button_text: self::getString($data, 'external_product_button_text'),
+            description: self::getString($data, 'description'),
+            sku: self::getString($data, 'sku'),
+            image: self::getArray($data, 'image'),
+            gallery: self::getArray($data, 'gallery'),
+            video: self::getArray($data, 'video'),
+            status: self::getString($data, 'status'),
+            height: self::getString($data, 'height'),
+            length: self::getString($data, 'length'),
+            width: self::getString($data, 'width'),
+            in_stock: self::getBool($data, 'in_stock'),
+            is_taxable: self::getBool($data, 'is_taxable'),
+            sold_quantity: self::getInt($data, 'sold_quantity') ?? 0,
+            visibility: self::getString($data, 'visibility') ?? 'visible',
+            categories: self::getArray($data, 'categories'),
+            tags: self::getArray($data, 'tags'),
+            dropoff_locations: self::getArray($data, 'dropoff_locations'),
+            pickup_locations: self::getArray($data, 'pickup_locations'),
+            persons: self::getArray($data, 'persons'),
+            features: self::getArray($data, 'features'),
+            deposits: self::getArray($data, 'deposits'),
+            metas: self::getArray($data, 'metas'),
+            variations: self::getArray($data, 'variations'),
+            variation_options: self::getArray($data, 'variation_options'),
+            digital_file: self::getArray($data, 'digital_file'),
+            inform_purchased_customer: self::getBool($data, 'inform_purchased_customer') ?? false,
+            product_update_message: self::getString($data, 'product_update_message'),
+            is_rental: self::getBool($data, 'is_rental'),
         );
     }
 
+    /**
+     * @param  array<string, mixed>  $data
+     */
     public static function fromArray(array $data): self
     {
         // Validation rules for DTO creation
@@ -126,54 +189,57 @@ class ProductData
         }
 
         return new self(
-            name: $data['name'] ?? null,
-            slug: $data['slug'] ?? null,
-            price: isset($data['price']) ? (float) $data['price'] : null,
-            sale_price: isset($data['sale_price']) ? (float) $data['sale_price'] : null,
-            max_price: isset($data['max_price']) ? (float) $data['max_price'] : null,
-            min_price: isset($data['min_price']) ? (float) $data['min_price'] : null,
-            type_id: $data['type_id'] ?? null,
-            shop_id: $data['shop_id'] ?? null,
-            author_id: $data['author_id'] ?? null,
-            manufacturer_id: $data['manufacturer_id'] ?? null,
-            language: $data['language'] ?? config('shop.default_language', 'id'),
-            product_type: $data['product_type'] ?? null,
-            quantity: $data['quantity'] ?? null,
-            unit: $data['unit'] ?? null,
-            is_digital: isset($data['is_digital']) ? (bool) $data['is_digital'] : null,
-            is_external: isset($data['is_external']) ? (bool) $data['is_external'] : null,
-            external_product_url: $data['external_product_url'] ?? null,
-            external_product_button_text: $data['external_product_button_text'] ?? null,
-            description: $data['description'] ?? null,
-            sku: $data['sku'] ?? null,
-            image: $data['image'] ?? null,
-            gallery: $data['gallery'] ?? null,
-            video: $data['video'] ?? null,
-            status: $data['status'] ?? null,
-            height: $data['height'] ?? null,
-            length: $data['length'] ?? null,
-            width: $data['width'] ?? null,
-            in_stock: isset($data['in_stock']) ? (bool) $data['in_stock'] : null,
-            is_taxable: isset($data['is_taxable']) ? (bool) $data['is_taxable'] : null,
-            sold_quantity: $data['sold_quantity'] ?? 0,
-            visibility: $data['visibility'] ?? 'visible',
-            categories: $data['categories'] ?? null,
-            tags: $data['tags'] ?? null,
-            dropoff_locations: $data['dropoff_locations'] ?? null,
-            pickup_locations: $data['pickup_locations'] ?? null,
-            persons: $data['persons'] ?? null,
-            features: $data['features'] ?? null,
-            deposits: $data['deposits'] ?? null,
-            metas: $data['metas'] ?? null,
-            variations: $data['variations'] ?? null,
-            variation_options: $data['variation_options'] ?? null,
-            digital_file: $data['digital_file'] ?? null,
-            inform_purchased_customer: (bool) ($data['inform_purchased_customer'] ?? false),
-            product_update_message: $data['product_update_message'] ?? null,
-            is_rental: isset($data['is_rental']) ? (bool) $data['is_rental'] : null,
+            name: self::getString($data, 'name'),
+            slug: self::getString($data, 'slug'),
+            price: self::getFloat($data, 'price'),
+            sale_price: self::getFloat($data, 'sale_price'),
+            max_price: self::getFloat($data, 'max_price'),
+            min_price: self::getFloat($data, 'min_price'),
+            type_id: self::getInt($data, 'type_id'),
+            shop_id: self::getInt($data, 'shop_id'),
+            author_id: self::getInt($data, 'author_id'),
+            manufacturer_id: self::getInt($data, 'manufacturer_id'),
+            language: self::getString($data, 'language') ?? (is_string(config('shop.default_language', 'id')) ? config('shop.default_language', 'id') : 'id'),
+            product_type: self::getString($data, 'product_type'),
+            quantity: self::getInt($data, 'quantity'),
+            unit: self::getString($data, 'unit'),
+            is_digital: self::getBool($data, 'is_digital'),
+            is_external: self::getBool($data, 'is_external'),
+            external_product_url: self::getString($data, 'external_product_url'),
+            external_product_button_text: self::getString($data, 'external_product_button_text'),
+            description: self::getString($data, 'description'),
+            sku: self::getString($data, 'sku'),
+            image: self::getArray($data, 'image'),
+            gallery: self::getArray($data, 'gallery'),
+            video: self::getArray($data, 'video'),
+            status: self::getString($data, 'status'),
+            height: self::getString($data, 'height'),
+            length: self::getString($data, 'length'),
+            width: self::getString($data, 'width'),
+            in_stock: self::getBool($data, 'in_stock'),
+            is_taxable: self::getBool($data, 'is_taxable'),
+            sold_quantity: self::getInt($data, 'sold_quantity') ?? 0,
+            visibility: self::getString($data, 'visibility') ?? 'visible',
+            categories: self::getArray($data, 'categories'),
+            tags: self::getArray($data, 'tags'),
+            dropoff_locations: self::getArray($data, 'dropoff_locations'),
+            pickup_locations: self::getArray($data, 'pickup_locations'),
+            persons: self::getArray($data, 'persons'),
+            features: self::getArray($data, 'features'),
+            deposits: self::getArray($data, 'deposits'),
+            metas: self::getArray($data, 'metas'),
+            variations: self::getArray($data, 'variations'),
+            variation_options: self::getArray($data, 'variation_options'),
+            digital_file: self::getArray($data, 'digital_file'),
+            inform_purchased_customer: self::getBool($data, 'inform_purchased_customer') ?? false,
+            product_update_message: self::getString($data, 'product_update_message'),
+            is_rental: self::getBool($data, 'is_rental'),
         );
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function toArray(): array
     {
         return [

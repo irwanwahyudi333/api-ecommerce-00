@@ -21,9 +21,13 @@ use App\Modules\Product\Services\ProductRentalService;
 use App\Modules\Product\Services\ProductService;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ProductController extends BaseController
 {
@@ -36,10 +40,13 @@ class ProductController extends BaseController
         private DeleteProductAction $deleteProductAction,
     ) {}
 
-    public function index(Request $request)
+    public function index(Request $request): JsonResponse
     {
-        $limit = (int) ($request->limit ?? 15);
+        $limitParam = $request->limit ?? 15;
+        $limit = is_numeric($limitParam) ? (int) $limitParam : 15;
         $cacheKey = 'products_'.md5($request->fullUrl());
+
+        /** @var LengthAwarePaginator<int, Product> $products */
         $products = Cache::remember($cacheKey, 300, function () use ($request, $limit) {
             return $this->productService->getProducts($request, $limit);
         });
@@ -51,12 +58,14 @@ class ProductController extends BaseController
         );
     }
 
-    public function store(ProductCreateRequest $request)
+    public function store(ProductCreateRequest $request): JsonResponse
     {
         $this->authorize('create', [Product::class, $request->shop_id]);
         $settings = Settings::first();
-        $data = ProductData::fromRequest($request->validated());
-        $product = $this->createProductAction->execute($data, $settings);
+        /** @var array<string, mixed> $validated */
+        $validated = $request->validated();
+        $data = ProductData::fromRequest($validated);
+        $product = $this->createProductAction->execute($data, $settings ?? (object) []);
         Cache::forget('products_*');
 
         return $this->sendSuccess(
@@ -66,10 +75,11 @@ class ProductController extends BaseController
         );
     }
 
-    public function show(Request $request, string $slug)
+    public function show(Request $request, string $slug): JsonResponse
     {
         try {
-            $cacheKey = 'product_detail_'.$slug.'_'.($request->language ?? 'id');
+            $language = is_string($request->language) ? $request->language : 'id';
+            $cacheKey = 'product_detail_'.$slug.'_'.$language;
             $product = Cache::remember($cacheKey, 600, function () use ($request, $slug) {
                 return $this->productService->getProductDetail($request, $slug);
             });
@@ -83,13 +93,15 @@ class ProductController extends BaseController
         }
     }
 
-    public function update(ProductUpdateRequest $request, int $id)
+    public function update(ProductUpdateRequest $request, int $id): JsonResponse
     {
         $product = Product::findOrFail($id);
         $this->authorize('update', $product);
         $settings = Settings::first();
-        $data = ProductData::fromRequest($request->validated());
-        $updated = $this->updateProductAction->execute($product, $data, $settings);
+        /** @var array<string, mixed> $validated */
+        $validated = $request->validated();
+        $data = ProductData::fromRequest($validated);
+        $updated = $this->updateProductAction->execute($product, $data, $settings ?? (object) []);
         Cache::forget('product_detail_'.$product->slug.'_*');
         Cache::forget('products_*');
 
@@ -99,7 +111,7 @@ class ProductController extends BaseController
         );
     }
 
-    public function destroy(Request $request, int $id)
+    public function destroy(Request $request, int $id): JsonResponse
     {
         $product = Product::findOrFail($id);
         $this->authorize('delete', $product);
@@ -111,11 +123,13 @@ class ProductController extends BaseController
         return $this->sendSuccess(null, 'Product deleted successfully');
     }
 
-    public function relatedProducts(Request $request)
+    public function relatedProducts(Request $request): JsonResponse
     {
-        $limit = (int) ($request->limit ?? 10);
-        $slug = $request->slug;
-        $language = $request->language ?? config('shop.default_language', 'id');
+        $limitParam = $request->limit ?? 10;
+        $limit = is_numeric($limitParam) ? (int) $limitParam : 10;
+        $slug = is_string($request->slug) ? $request->slug : '';
+        $languageParam = $request->language ?? config('shop.default_language', 'id');
+        $language = is_string($languageParam) ? $languageParam : 'id';
         $cacheKey = "related_products_{$slug}_{$language}_{$limit}";
         $products = Cache::remember($cacheKey, 600, function () use ($slug, $limit, $language) {
             $product = Product::where('slug', $slug)->where('language', $language)->firstOrFail();
@@ -129,7 +143,7 @@ class ProductController extends BaseController
         );
     }
 
-    public function bestSellingProducts(Request $request)
+    public function bestSellingProducts(Request $request): JsonResponse
     {
         $cacheKey = 'best_selling_'.md5($request->fullUrl());
         $products = Cache::remember($cacheKey, 600, function () use ($request) {
@@ -142,7 +156,7 @@ class ProductController extends BaseController
         );
     }
 
-    public function popularProducts(Request $request)
+    public function popularProducts(Request $request): JsonResponse
     {
         $cacheKey = 'popular_products_'.md5($request->fullUrl());
         $products = Cache::remember($cacheKey, 600, function () use ($request) {
@@ -155,7 +169,7 @@ class ProductController extends BaseController
         );
     }
 
-    public function draftedProducts(Request $request)
+    public function draftedProducts(Request $request): JsonResponse
     {
         $this->authorize('viewDrafted', Product::class);
         $products = $this->productService->getDraftedProducts($request);
@@ -166,7 +180,7 @@ class ProductController extends BaseController
         );
     }
 
-    public function productStock(Request $request)
+    public function productStock(Request $request): JsonResponse
     {
         $this->authorize('viewStock', Product::class);
         $products = $this->productService->getLowStockProducts($request);
@@ -177,7 +191,7 @@ class ProductController extends BaseController
         );
     }
 
-    public function myWishlists(Request $request)
+    public function myWishlists(Request $request): JsonResponse
     {
         $user = $request->user();
         if (! $user) {
@@ -191,7 +205,7 @@ class ProductController extends BaseController
         );
     }
 
-    public function calculateRentalPrice(Request $request)
+    public function calculateRentalPrice(Request $request): JsonResponse
     {
         $request->validate([
             'product_id' => 'required|exists:products,id',
@@ -206,7 +220,7 @@ class ProductController extends BaseController
         return $this->sendSuccess($price, 'Rental price calculated');
     }
 
-    public function exportProducts(Request $request, int $shopId)
+    public function exportProducts(Request $request, int $shopId): StreamedResponse
     {
         $this->authorize('export', [Product::class, $shopId]);
 
@@ -218,6 +232,9 @@ class ProductController extends BaseController
 
         $callback = function () use ($shopId) {
             $handle = fopen('php://output', 'w');
+            if ($handle === false) {
+                return;
+            }
             $headers = [
                 'name', 'slug', 'price', 'sale_price', 'type_id', 'shop_id',
                 'author_id', 'manufacturer_id', 'language', 'product_type',
@@ -267,7 +284,7 @@ class ProductController extends BaseController
         return response()->stream($callback, 200, $headers);
     }
 
-    public function exportVariableOptions(Request $request, int $shopId)
+    public function exportVariableOptions(Request $request, int $shopId): StreamedResponse
     {
         $this->authorize('export', [Product::class, $shopId]);
 
@@ -279,6 +296,9 @@ class ProductController extends BaseController
 
         $callback = function () use ($shopId) {
             $handle = fopen('php://output', 'w');
+            if ($handle === false) {
+                return;
+            }
             $headers = ['product_id', 'sku', 'title', 'price', 'sale_price', 'quantity', 'options', 'image'];
             fputcsv($handle, $headers);
 
@@ -304,18 +324,21 @@ class ProductController extends BaseController
         return response()->stream($callback, 200, $headers);
     }
 
-    public function importProducts(Request $request)
+    public function importProducts(Request $request): JsonResponse
     {
-        $this->authorize('import', [Product::class, $request->shop_id]);
-        $shopId = $request->shop_id;
+        $shopId = is_numeric($request->shop_id) ? (int) $request->shop_id : 0;
+        $this->authorize('import', [Product::class, $shopId]);
 
         if (! $request->hasFile('csv')) {
             return $this->sendError('CSV file is required', 422);
         }
 
         $file = $request->file('csv');
+        if (! $file instanceof UploadedFile) {
+            return $this->sendError('Invalid file type', 422);
+        }
         $path = $file->storeAs('csv-imports', 'products-'.$shopId.'-'.time().'.csv', 'local');
-        $csvData = $this->csvToArray(storage_path('app/'.$path));
+        $csvData = $this->csvToArray(storage_path('app/'.(is_string($path) ? $path : '')));
 
         if (empty($csvData)) {
             return $this->sendError('CSV file is empty or invalid', 422);
@@ -328,45 +351,51 @@ class ProductController extends BaseController
 
         foreach ($csvData as $index => $row) {
             try {
-                if (empty($row['type_id'])) {
+                /** @var array<string, mixed> $r */
+                $r = $row;
+                if (empty($r['type_id'])) {
                     throw new \Exception('type_id is required at row '.($index + 1));
                 }
 
-                // Build ProductData from array
+                $name = isset($r['name']) && is_string($r['name']) ? $r['name'] : '';
+                $slug = isset($r['slug']) && is_string($r['slug']) ? $r['slug'] : Str::slug($name !== '' ? $name : 'product-'.uniqid());
+                $langParam = config('shop.default_language', 'id');
+                $lang = is_string($langParam) ? $langParam : 'id';
+
                 $data = new ProductData(
-                    name: $row['name'] ?? '',
-                    slug: $row['slug'] ?? Str::slug($row['name'] ?? 'product-'.uniqid()),
-                    price: (float) ($row['price'] ?? 0),
-                    sale_price: isset($row['sale_price']) ? (float) $row['sale_price'] : null,
-                    max_price: isset($row['max_price']) ? (float) $row['max_price'] : null,
-                    min_price: isset($row['min_price']) ? (float) $row['min_price'] : null,
-                    type_id: (int) $row['type_id'],
+                    name: $name,
+                    slug: $slug,
+                    price: isset($r['price']) && is_numeric($r['price']) ? (float) $r['price'] : 0.0,
+                    sale_price: isset($r['sale_price']) && is_numeric($r['sale_price']) ? (float) $r['sale_price'] : null,
+                    max_price: isset($r['max_price']) && is_numeric($r['max_price']) ? (float) $r['max_price'] : null,
+                    min_price: isset($r['min_price']) && is_numeric($r['min_price']) ? (float) $r['min_price'] : null,
+                    type_id: is_numeric($r['type_id']) ? (int) $r['type_id'] : 0,
                     shop_id: $shopId,
-                    author_id: isset($row['author_id']) ? (int) $row['author_id'] : null,
-                    manufacturer_id: isset($row['manufacturer_id']) ? (int) $row['manufacturer_id'] : null,
-                    language: $row['language'] ?? config('shop.default_language', 'id'),
-                    product_type: $row['product_type'] ?? 'simple',
-                    quantity: isset($row['quantity']) ? (int) $row['quantity'] : null,
-                    unit: $row['unit'] ?? null,
-                    is_digital: isset($row['is_digital']) ? (bool) $row['is_digital'] : false,
-                    is_external: isset($row['is_external']) ? (bool) $row['is_external'] : false,
-                    external_product_url: $row['external_product_url'] ?? null,
-                    external_product_button_text: $row['external_product_button_text'] ?? null,
-                    description: $row['description'] ?? null,
-                    sku: $row['sku'] ?? null,
-                    image: isset($row['image']) ? json_decode($row['image'], true) : null,
-                    gallery: isset($row['gallery']) ? json_decode($row['gallery'], true) : null,
-                    video: isset($row['video']) ? json_decode($row['video'], true) : null,
-                    status: $row['status'] ?? 'draft',
-                    height: isset($row['height']) ? (float) $row['height'] : null,
-                    length: isset($row['length']) ? (float) $row['length'] : null,
-                    width: isset($row['width']) ? (float) $row['width'] : null,
-                    in_stock: isset($row['in_stock']) ? (bool) $row['in_stock'] : true,
-                    is_taxable: isset($row['is_taxable']) ? (bool) $row['is_taxable'] : true,
-                    sold_quantity: isset($row['sold_quantity']) ? (int) $row['sold_quantity'] : 0,
-                    visibility: $row['visibility'] ?? 'public',
-                    categories: isset($row['categories']) ? json_decode($row['categories'], true) : null,
-                    tags: isset($row['tags']) ? json_decode($row['tags'], true) : null,
+                    author_id: isset($r['author_id']) && is_numeric($r['author_id']) ? (int) $r['author_id'] : null,
+                    manufacturer_id: isset($r['manufacturer_id']) && is_numeric($r['manufacturer_id']) ? (int) $r['manufacturer_id'] : null,
+                    language: isset($r['language']) && is_string($r['language']) ? $r['language'] : $lang,
+                    product_type: isset($r['product_type']) && is_string($r['product_type']) ? $r['product_type'] : 'simple',
+                    quantity: isset($r['quantity']) && is_numeric($r['quantity']) ? (int) $r['quantity'] : null,
+                    unit: isset($r['unit']) && is_string($r['unit']) ? $r['unit'] : null,
+                    is_digital: isset($r['is_digital']) ? (bool) $r['is_digital'] : false,
+                    is_external: isset($r['is_external']) ? (bool) $r['is_external'] : false,
+                    external_product_url: isset($r['external_product_url']) && is_string($r['external_product_url']) ? $r['external_product_url'] : null,
+                    external_product_button_text: isset($r['external_product_button_text']) && is_string($r['external_product_button_text']) ? $r['external_product_button_text'] : null,
+                    description: isset($r['description']) && is_string($r['description']) ? $r['description'] : null,
+                    sku: isset($r['sku']) && is_string($r['sku']) ? $r['sku'] : null,
+                    image: isset($r['image']) && is_string($r['image']) ? (array) json_decode($r['image'], true) : null,
+                    gallery: isset($r['gallery']) && is_string($r['gallery']) ? (array) json_decode($r['gallery'], true) : null,
+                    video: isset($r['video']) && is_string($r['video']) ? (array) json_decode($r['video'], true) : null,
+                    status: isset($r['status']) && is_string($r['status']) ? $r['status'] : 'draft',
+                    height: isset($r['height']) && is_scalar($r['height']) ? (string) $r['height'] : null,
+                    length: isset($r['length']) && is_scalar($r['length']) ? (string) $r['length'] : null,
+                    width: isset($r['width']) && is_scalar($r['width']) ? (string) $r['width'] : null,
+                    in_stock: isset($r['in_stock']) ? (bool) $r['in_stock'] : true,
+                    is_taxable: isset($r['is_taxable']) ? (bool) $r['is_taxable'] : true,
+                    sold_quantity: isset($r['sold_quantity']) && is_numeric($r['sold_quantity']) ? (int) $r['sold_quantity'] : 0,
+                    visibility: isset($r['visibility']) && is_string($r['visibility']) ? $r['visibility'] : 'public',
+                    categories: isset($r['categories']) && is_string($r['categories']) ? (array) json_decode($r['categories'], true) : null,
+                    tags: isset($r['tags']) && is_string($r['tags']) ? (array) json_decode($r['tags'], true) : null,
                     dropoff_locations: null,
                     pickup_locations: null,
                     persons: null,
@@ -378,10 +407,10 @@ class ProductController extends BaseController
                     digital_file: null,
                     inform_purchased_customer: false,
                     product_update_message: null,
-                    is_rental: isset($row['is_rental']) ? (bool) $row['is_rental'] : false,
+                    is_rental: isset($r['is_rental']) ? (bool) $r['is_rental'] : false,
                 );
 
-                $this->createProductAction->execute($data, $settings);
+                $this->createProductAction->execute($data, $settings ?? (object) []);
                 $success++;
             } catch (\Exception $e) {
                 $errors[] = 'Row '.($index + 1).': '.$e->getMessage();
@@ -399,6 +428,8 @@ class ProductController extends BaseController
 
     /**
      * Helper to convert CSV to array
+     *
+     * @return array<int, array<string, mixed>>
      */
     private function csvToArray(string $filename, string $delimiter = ','): array
     {
@@ -413,7 +444,9 @@ class ProductController extends BaseController
                     $header = $row;
                 } else {
                     if (count($header) === count($row)) {
-                        $data[] = array_combine($header, $row);
+                        /** @var array<string> $headerNames */
+                        $headerNames = $header;
+                        $data[] = array_combine($headerNames, $row);
                     }
                 }
             }

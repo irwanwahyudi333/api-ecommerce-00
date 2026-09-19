@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace App\Modules\Product\Services;
 
 use App\Models\Product;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Cache;
 
 class ProductCacheService
@@ -20,6 +20,9 @@ class ProductCacheService
         private ProductQueryService $queryService
     ) {}
 
+    /**
+     * @return LengthAwarePaginator<int, Product>
+     */
     public function getCachedProducts(Request $request, int $perPage = 15): LengthAwarePaginator
     {
         $cacheKey = $this->generateCacheKey('products', $request);
@@ -40,6 +43,9 @@ class ProductCacheService
             });
     }
 
+    /**
+     * @return Collection<int, Product>
+     */
     public function getCachedPopularProducts(Request $request): Collection
     {
         $cacheKey = $this->generateCacheKey('popular-products', $request);
@@ -50,6 +56,9 @@ class ProductCacheService
             });
     }
 
+    /**
+     * @return LengthAwarePaginator<int, Product>
+     */
     public function getCachedShopProducts(int $shopId, Request $request): LengthAwarePaginator
     {
         $cacheKey = $this->generateCacheKey("shop:{$shopId}:products", $request);
@@ -85,6 +94,9 @@ class ProductCacheService
         return "{$prefix}:{$paramsHash}";
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     private function getCacheableQueryParams(Request $request): array
     {
         // Only include cacheable parameters

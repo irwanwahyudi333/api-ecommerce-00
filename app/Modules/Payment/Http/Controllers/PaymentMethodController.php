@@ -6,6 +6,7 @@ namespace App\Modules\Payment\Http\Controllers;
 
 use App\Http\Controllers\BaseController;
 use App\Models\PaymentMethod;
+use App\Models\User;
 use App\Modules\Payment\Actions\DeletePaymentMethodAction;
 use App\Modules\Payment\Actions\GetPaymentMethodsAction;
 use App\Modules\Payment\Actions\InitializePaymentMethodAction;
@@ -52,7 +53,9 @@ final class PaymentMethodController extends BaseController
         $this->authorize('viewAny', PaymentMethod::class);
 
         $gateway = $request->query('gateway');
-        $methods = $this->getPaymentMethodsAction->execute($request->user(), $gateway);
+        /** @var User $user */
+        $user = $request->user();
+        $methods = $this->getPaymentMethodsAction->execute($user, is_string($gateway) ? $gateway : null);
 
         return PaymentMethodResource::collection($methods)->response();
     }
@@ -106,9 +109,12 @@ final class PaymentMethodController extends BaseController
     {
         $this->authorize('create', PaymentMethod::class);
 
+        /** @var User $user */
+        $user = $request->user();
+
         $method = $this->storePaymentMethodAction->execute(
             $request->validated(),
-            $request->user()
+            $user
         );
 
         return (new PaymentMethodResource($method))
@@ -179,9 +185,14 @@ final class PaymentMethodController extends BaseController
     {
         $this->authorize('create', PaymentMethod::class);
 
+        /** @var User $user */
+        $user = $request->user();
+        /** @var string $gateway */
+        $gateway = $request->validated()['gateway'];
+
         $intent = $this->initializePaymentMethodAction->execute(
-            $request->user(),
-            $request->validated()['gateway']
+            $user,
+            $gateway
         );
 
         return response()->json($intent ?? ['status' => 'not_supported']);
@@ -209,6 +220,7 @@ final class PaymentMethodController extends BaseController
      */
     public function setDefault(SetDefaultPaymentMethodRequest $request): JsonResponse
     {
+        /** @var PaymentMethod $method */
         $method = $request->getPaymentMethod();
 
         $this->authorize('setDefault', $method);

@@ -14,6 +14,7 @@ final class OtpService
 
     public function __construct()
     {
+        /** @var string $gatewayName */
         $gatewayName = Config::get('auth.active_otp_gateway', 'twilio');
         // Use the new modular path for gateways
         $gatewayClass = 'App\\Modules\\Otp\\Services\\Gateways\\'.ucfirst($gatewayName).'Gateway';
@@ -54,5 +55,10 @@ final class OtpService
         }
 
         return $this->gateway->sendSms($phoneNumber, $message);
+    }
+
+    public function setGateway(OtpInterface $gateway): void
+    {
+        $this->gateway = $gateway;
     }
 }

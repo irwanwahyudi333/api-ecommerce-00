@@ -8,10 +8,10 @@ use App\Enums\ProductStatus;
 use App\Enums\ProductVisibilityStatus;
 use App\Models\Product;
 use App\Models\User;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class ProductQueryService
 {
@@ -35,6 +35,9 @@ class ProductQueryService
         'variation_options',
     ];
 
+    /**
+     * @return Builder<Product>
+     */
     public function buildQuery(Request $request, ?User $user = null): Builder
     {
         $query = Product::query();
@@ -54,6 +57,9 @@ class ProductQueryService
         return $query;
     }
 
+    /**
+     * @return LengthAwarePaginator<int, Product>
+     */
     public function getPaginatedProducts(Request $request, int $perPage = 15): LengthAwarePaginator
     {
         $query = $this->buildQuery($request, $request->user());
@@ -67,20 +73,35 @@ class ProductQueryService
         $query = $this->buildQuery($request, $user);
 
         if (is_numeric($identifier)) {
-            return $query->findOrFail((int) $identifier);
+            /** @var Product $product */
+            $product = $query->findOrFail((int) $identifier);
+
+            return $product;
         }
 
-        return $query->where('slug', $identifier)->firstOrFail();
+        /** @var Product $product */
+        $product = $query->where('slug', $identifier)->firstOrFail();
+
+        return $product;
     }
 
+    /**
+     * @return LengthAwarePaginator<int, Product>
+     */
     public function getProductsByShop(int $shopId, Request $request): LengthAwarePaginator
     {
         $query = $this->buildQuery($request, $request->user());
         $query->where('shop_id', $shopId);
 
-        return $query->paginate($request->get('limit', 15));
+        $limit = $request->get('limit', 15);
+        $perPage = is_numeric($limit) ? (int) $limit : 15;
+
+        return $query->paginate($perPage);
     }
 
+    /**
+     * @return Collection<int, Product>
+     */
     public function getPopularProducts(Request $request): Collection
     {
         $query = $this->buildQuery($request, $request->user());
@@ -89,14 +110,18 @@ class ProductQueryService
             ->where('status', ProductStatus::PUBLISH->value)
             ->where('visibility', ProductVisibilityStatus::VISIBILITY_PUBLIC->value)
             ->orderBy('sold_quantity', 'desc')
-            ->limit($request->get('limit', 10))
+            ->limit(is_numeric($request->get('limit', 10)) ? (int) $request->get('limit', 10) : 10)
             ->get();
     }
 
+    /**
+     * @return Collection<int, Product>
+     */
     public function getLowStockProducts(Request $request): Collection
     {
         $user = $request->user();
-        $threshold = (int) $request->get('threshold', 10);
+        $limit = $request->get('threshold', 10);
+        $threshold = is_numeric($limit) ? (int) $limit : 10;
 
         $query = $this->buildQuery($request, $user);
 
@@ -110,6 +135,9 @@ class ProductQueryService
             ->get();
     }
 
+    /**
+     * @param  Builder<Product>  $query
+     */
     private function applyAuthorizationFilter(Builder $query, ?User $user = null): void
     {
         // Super admin can see everything
@@ -145,16 +173,23 @@ class ProductQueryService
         }
     }
 
+    /**
+     * @param  Builder<Product>  $query
+     */
     private function applyEagerLoading(Builder $query, ?User $user = null): void
     {
         $relations = $user ? self::DEFAULT_RELATIONS : self::PUBLIC_RELATIONS;
         $query->with($relations);
     }
 
+    /**
+     * @param  Builder<Product>  $query
+     */
     private function applyFilters(Builder $query, Request $request): void
     {
         // Search filter
-        if ($search = $request->get('search')) {
+        $search = $request->get('search');
+        if (is_string($search) && $search !== '') {
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                     ->orWhere('sku', 'like', "%{$search}%")
@@ -198,10 +233,13 @@ class ProductQueryService
         }
     }
 
+    /**
+     * @param  Builder<Product>  $query
+     */
     private function applySorting(Builder $query, Request $request): void
     {
-        $sortBy = $request->get('sort_by', 'created_at');
-        $sortOrder = $request->get('sort_order', 'desc');
+        $sortBy = is_string($request->get('sort_by')) ? $request->get('sort_by') : 'created_at';
+        $sortOrder = $request->get('sort_order') === 'asc' ? 'asc' : 'desc';
 
         $validSortColumns = [
             'name', 'price', 'created_at', 'updated_at',

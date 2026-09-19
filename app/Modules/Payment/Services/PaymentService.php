@@ -8,8 +8,10 @@ use App\Enums\PaymentGatewayType;
 use App\Models\Order;
 use App\Models\PaymentGateway;
 use App\Models\PaymentIntent;
+use App\Models\User;
 use App\Modules\Payment\Contracts\PaymentProviderInterface;
 use App\Modules\Payment\Factory\PaymentProviderFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
@@ -27,12 +29,20 @@ class PaymentService
             ->first();
     }
 
+    /**
+     * @param  mixed  $settings
+     */
     public function processPaymentIntent(Request $request, $settings): object
     {
+        /** @var array<string, mixed> $data */
         $data = $request->all();
+        /** @var string $orderTrackingNumber */
         $orderTrackingNumber = $data['tracking_number'];
+        /** @var string $requestedGateway */
         $requestedGateway = $data['payment_gateway'];
+
         $order = $this->fetchOrderByTrackingNumber($orderTrackingNumber);
+        /** @var string $initialGateway */
         $initialGateway = $order->payment_gateway;
 
         if ($requestedGateway !== $initialGateway) {
@@ -45,12 +55,12 @@ class PaymentService
             $chosenGateway = ucfirst(strtolower($requestedGateway));
         }
 
-        $exists = $this->paymentIntentExists($orderTrackingNumber, $chosenGateway);
+        $exists = $this->paymentIntentExists($orderTrackingNumber, (string) $chosenGateway);
         if (! $exists) {
-            $newIntent = $this->savePaymentIntent($order, $chosenGateway, $request);
-            if (($data['recall_gateway'] ?? false) && $newIntent) {
-                $this->deleteOlderPaymentIntent($orderTrackingNumber, ucfirst(strtolower($order->payment_gateway)));
-                $this->updateOrderPaymentGateway($order, $initialGateway, $chosenGateway);
+            $newIntent = $this->savePaymentIntent($order, (string) $chosenGateway, $request);
+            if ($data['recall_gateway'] ?? false) {
+                $this->deleteOlderPaymentIntent($orderTrackingNumber, ucfirst(strtolower($initialGateway)));
+                $this->updateOrderPaymentGateway($order, $initialGateway, (string) $chosenGateway);
             }
 
             return $newIntent;
@@ -61,12 +71,25 @@ class PaymentService
         })->where('payment_gateway', $chosenGateway)->firstOrFail();
     }
 
+    /**
+     * @param  mixed  $settings
+     */
     protected function getActiveGatewayFromSettings($settings, string $requestedGateway): ?string
     {
-        if (isset($settings->options['paymentGateway'])) {
-            foreach ($settings->options['paymentGateway'] as $gw) {
-                if (strtoupper($gw['name']) === strtoupper($requestedGateway)) {
-                    return ucfirst(strtolower($gw['name']));
+        $options = null;
+        if (is_object($settings) && property_exists($settings, 'options')) {
+            /** @var array<string, mixed> $options */
+            $options = $settings->options;
+        }
+
+        if (is_array($options) && isset($options['paymentGateway']) && is_array($options['paymentGateway'])) {
+            foreach ($options['paymentGateway'] as $gw) {
+                if (is_array($gw) && isset($gw['name'])) {
+                    if (is_string($gw['name'])) {
+                        if (strtoupper($gw['name']) === strtoupper($requestedGateway)) {
+                            return ucfirst(strtolower($gw['name']));
+                        }
+                    }
                 }
             }
         }
@@ -90,13 +113,14 @@ class PaymentService
 
     public function updateOrderPaymentGateway(Order $order, string $oldGateway, string $newGateway): void
     {
-        $order->altered_payment_gateway = $oldGateway;
-        $order->payment_gateway = strtoupper($newGateway);
+        $order->setAttribute('altered_payment_gateway', $oldGateway);
+        $order->setAttribute('payment_gateway', strtoupper($newGateway));
         $order->save();
 
         foreach ($order->children as $child) {
-            $child->payment_gateway = strtoupper($newGateway);
-            $child->altered_payment_gateway = $oldGateway;
+            /** @var Order $child */
+            $child->setAttribute('payment_gateway', strtoupper($newGateway));
+            $child->setAttribute('altered_payment_gateway', $oldGateway);
             $child->save();
         }
     }
@@ -113,47 +137,70 @@ class PaymentService
         ]);
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function createPaymentIntent(Order $order, Request $request, string $gateway): array
     {
         $provider = $this->getProvider($gateway);
 
+        /** @var Model|null $wallet */
+        $wallet = $order->getAttribute('wallet');
+        /** @var numeric|null $walletAmount */
+        $walletAmount = $wallet ? $wallet->getAttribute('amount') : 0;
+
         $data = [
-            'amount' => $order->paid_total - intval($order->wallet?->amount),
+            'amount' => ((float) $order->paid_total) - (int) ($walletAmount ?? 0),
             'order_tracking_number' => $order->tracking_number,
             'currency' => config('shop.default_currency', 'usd'),
         ];
 
-        if ($request->user()) {
-            $data['user_email'] = $order->customer->email;
-            $data['name'] = $order->customer->name;
+        /** @var User|null $customer */
+        $customer = $order->customer;
+
+        if ($request->user() && $customer) {
+            $data['user_email'] = $customer->email;
+            $data['name'] = $customer->name;
         }
 
-        if (strtoupper($gateway) === PaymentGatewayType::STRIPE && $request->user()) {
-            $customer = $this->createPaymentCustomer($request, $gateway);
-            $data['customer'] = $customer['customer_id'];
+        if (strtoupper($gateway) === PaymentGatewayType::STRIPE->value && $request->user()) {
+            $paymentCustomer = $this->createPaymentCustomer($request, $gateway);
+            $data['customer'] = $paymentCustomer['customer_id'];
         }
 
-        if (strtoupper($gateway) === PaymentGatewayType::IYZICO) {
+        if (strtoupper($gateway) === PaymentGatewayType::IYZICO->value) {
             $data['ip'] = $request->ip();
         }
 
-        return $provider->createIntent($data);
+        return $provider->createPayment($data);
     }
 
     public function fetchOrderByTrackingNumber(string $trackingNumber): Order
     {
         $order = Order::where('id', $trackingNumber)->orWhere('tracking_number', $trackingNumber)->first();
         if (! $order) {
-            throw new HttpException(404, config('notice.NOT_FOUND'));
+            /** @var string $notice */
+            $notice = config('notice.NOT_FOUND', 'Not found');
+            throw new HttpException(404, $notice);
         }
 
         return $order;
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function createPaymentCustomer(Request $request, string $gateway): array
     {
         $gateway = strtoupper($gateway);
-        $user = $request->user();
+        $authUser = $request->user();
+
+        if (! $authUser) {
+            throw new \RuntimeException('User not authenticated');
+        }
+
+        /** @var User $user */
+        $user = $authUser;
 
         $existing = PaymentGateway::where('user_id', $user->id)->where('gateway_name', $gateway)->first();
         if ($existing) {

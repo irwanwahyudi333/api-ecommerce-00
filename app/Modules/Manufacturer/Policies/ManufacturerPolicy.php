@@ -33,7 +33,10 @@ class ManufacturerPolicy
         }
 
         if ($user->hasPermissionTo(Permission::STORE_OWNER->value)) {
-            return $manufacturer->shop_id && $user->shops()->where('id', $manufacturer->shop_id)->exists();
+            /** @var int|null $shopId */
+            $shopId = $manufacturer->getAttribute('shop_id');
+
+            return $shopId && $user->shops()->where('id', $shopId)->exists();
         }
 
         return false;

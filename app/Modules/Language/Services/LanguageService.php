@@ -6,10 +6,14 @@ namespace App\Modules\Language\Services;
 
 use App\Models\Language;
 use App\Modules\Language\DTO\LanguageData;
+use Illuminate\Database\Eloquent\Collection;
 
 class LanguageService
 {
-    public function getAll()
+    /**
+     * @return Collection<int, Language>
+     */
+    public function getAll(): Collection
     {
         return Language::all();
     }
@@ -36,7 +40,9 @@ class LanguageService
             'flag' => $data->flag,
         ]);
 
-        return $language->fresh();
+        $language->refresh();
+
+        return $language;
     }
 
     public function delete(Language $language): void

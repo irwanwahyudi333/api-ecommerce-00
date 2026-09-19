@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Payment\Actions;
 
 use App\Models\PaymentMethod;
+use App\Models\User;
 use App\Modules\Payment\Contracts\PaymentGatewayFactoryInterface;
 use App\Modules\Payment\Services\PaymentMethodPersistService;
 use App\Modules\PaymentMethod\DTO\PaymentMethodData;
@@ -18,8 +19,13 @@ final class StorePaymentMethodAction
         private readonly PaymentMethodPersistService $persistService,
     ) {}
 
+    /**
+     * @param  array<string, mixed>  $data
+     * @param  User  $user
+     */
     public function execute(array $data, Authenticatable $user): PaymentMethod
     {
+        /** @var User $user */
         $paymentMethodData = PaymentMethodData::fromRequest($data);
 
         $provider = $this->gatewayFactory->create($paymentMethodData->payment_gateway);
@@ -37,8 +43,11 @@ final class StorePaymentMethodAction
                 $paymentMethodData->method_type
             );
 
+            /** @var object $methodData */
+            $methodData = $attachedMethod ?? $paymentMethod;
+
             return $this->persistService->save(
-                $attachedMethod ?? $paymentMethod,
+                $methodData,
                 $user,
                 $paymentMethodData
             );
@@ -50,9 +59,13 @@ final class StorePaymentMethodAction
         string $methodKey,
         Authenticatable $user,
         ?string $type
-    ): ?object {
+    ): mixed {
         try {
-            return $provider->attachPaymentMethodToCustomer($methodKey, $user, $type);
+            if (method_exists($provider, 'attachPaymentMethodToCustomer')) {
+                return $provider->attachPaymentMethodToCustomer($methodKey, $user, $type);
+            }
+
+            return null;
         } catch (\BadMethodCallException $e) {
             // Provider may not support attachment
             return null;

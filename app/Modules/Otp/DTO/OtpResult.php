@@ -8,11 +8,15 @@ final class OtpResult
 {
     private bool $valid;
 
+    /** @var array<mixed> */
     private array $errors;
 
     private string $id;
 
-    public function __construct($value)
+    /**
+     * @param  string|array<mixed>  $value
+     */
+    public function __construct(string|array $value)
     {
         if (is_string($value)) {
             $this->id = $value;
@@ -32,6 +36,9 @@ final class OtpResult
         return $this->valid;
     }
 
+    /**
+     * @return array<mixed>
+     */
     public function getErrors(): array
     {
         return $this->errors;

@@ -2,7 +2,10 @@
 
 namespace App\Modules\Product\Actions;
 
+use App\Models\DigitalFile;
 use App\Models\Product;
+use App\Models\Shop;
+use App\Models\User;
 use App\Models\Variation;
 use App\Modules\Download\Events\DigitalProductUpdateEvent;
 use App\Modules\Product\DTO\ProductData;
@@ -10,26 +13,33 @@ use App\Modules\Product\DTO\VariationOptionData;
 use App\Modules\Review\Events\ProductReviewApproved;
 use App\Modules\Review\Events\ProductReviewRejected;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class UpdateProductAction
 {
+    /**
+     * @param  object  $settings
+     */
     public function execute(Product $product, ProductData $data, $settings): Product
     {
-        return DB::transaction(function () use ($product, $data, $settings) {
+        /** @var Product $result */
+        $result = DB::transaction(function () use ($product, $data, $settings) {
             // Prepare attributes
             $attributes = $this->prepareAttributes($product, $data);
 
             // Update status based on review setting
-            if (isset($settings->options['isProductReview']) && $settings->options['isProductReview']) {
+            if (property_exists($settings, 'options') && is_array($settings->options) && ! empty($settings->options['isProductReview'])) {
                 $attributes['status'] = $this->checkProductForPublish($data, $product);
             }
 
             $product->update($attributes);
 
             // Handle metas
-            if ($data->metas) {
+            if (is_array($data->metas)) {
                 foreach ($data->metas as $meta) {
-                    $product->setMeta($meta['key'], $meta['value']);
+                    if (is_array($meta) && isset($meta['key']) && is_string($meta['key'])) {
+                        $product->setMeta($meta['key'], $meta['value'] ?? null);
+                    }
                 }
             }
 
@@ -37,21 +47,23 @@ class UpdateProductAction
             $this->syncRelations($product, $data);
 
             // Handle variation options (upsert + delete)
-            if ($data->variation_options) {
-                if (isset($data->variation_options['upsert'])) {
+            if (is_array($data->variation_options)) {
+                if (isset($data->variation_options['upsert']) && is_array($data->variation_options['upsert'])) {
                     $this->upsertVariationOptions($product, $data->variation_options['upsert'], $settings);
                 }
-                if (isset($data->variation_options['delete'])) {
+                if (isset($data->variation_options['delete']) && is_array($data->variation_options['delete'])) {
                     $product->variation_options()->whereIn('id', $data->variation_options['delete'])->delete();
                 }
             }
 
             // Handle digital file for product
-            if ($data->digital_file) {
+            if (is_array($data->digital_file)) {
+                /** @var array<string, mixed> $digitalFileArr */
+                $digitalFileArr = $data->digital_file;
                 if ($product->digital_file) {
-                    $product->digital_file()->update($data->digital_file);
+                    $product->digital_file()->update($digitalFileArr);
                 } else {
-                    $product->digital_file()->create($data->digital_file);
+                    $product->digital_file()->create($digitalFileArr);
                 }
             }
 
@@ -66,17 +78,27 @@ class UpdateProductAction
             }
 
             // Fire digital product update event if needed
-            if (($settings->options['enableEmailForDigitalProduct'] ?? false) && $data->inform_purchased_customer) {
-                event(new DigitalProductUpdateEvent($product, auth()->user(), [
+            if (property_exists($settings, 'options') && is_array($settings->options) && ($settings->options['enableEmailForDigitalProduct'] ?? false) && $data->inform_purchased_customer) {
+                /** @var User $user */
+                $user = auth()->user();
+                event(new DigitalProductUpdateEvent($product, $user, [
                     'inform_customer' => $data->inform_purchased_customer,
                     'update_message' => $data->product_update_message,
                 ]));
             }
 
-            return $product->fresh();
+            /** @var Product $freshProduct */
+            $freshProduct = $product->fresh();
+
+            return $freshProduct;
         });
+
+        return $result;
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     private function prepareAttributes(Product $product, ProductData $data): array
     {
         // Jangan gunakan array_filter jika ingin mendukung pengosongan data (nullify)
@@ -115,8 +137,10 @@ class UpdateProductAction
 
         // Gunakan helper generateUniqueSlug jika slug berubah
         if (! empty($data->slug) && $data->slug !== $product->slug) {
-            $language = $data->language ?? $product->language;
-            $attributes['slug'] = generateUniqueSlug(Product::class, $data->slug, $language, 'slug', $product->id);
+            $language = $data->language ?? (string) $product->language;
+            /** @var string $slug */
+            $slug = function_exists('generateUniqueSlug') ? generateUniqueSlug(Product::class, $data->slug, $language, 'slug', $product->id) : Str::slug($data->slug);
+            $attributes['slug'] = $slug;
         }
 
         return $attributes;
@@ -124,10 +148,13 @@ class UpdateProductAction
 
     private function checkProductForPublish(ProductData $data, Product $product): string
     {
+        /** @var User $user */
         $user = auth()->user();
         $status = $product->status;
 
-        if ($user->hasPermissionTo('store_owner') && $product->shop->owner_id === $user->id) {
+        /** @var Shop|null $shop */
+        $shop = $product->shop;
+        if ($user->hasPermissionTo('store_owner') && $shop !== null && $shop->owner_id === $user->id) {
             if (in_array($product->status, ['draft', 'under_review', 'rejected'])) {
                 $status = $data->status === 'draft' ? 'draft' : 'under_review';
             } else {
@@ -180,11 +207,20 @@ class UpdateProductAction
         }
     }
 
+    /**
+     * @param  array<array-key, mixed>  $variations
+     * @param  object  $settings
+     */
     private function upsertVariationOptions(Product $product, array $variations, $settings): void
     {
         foreach ($variations as $rawVariationData) {
+            if (! is_array($rawVariationData)) {
+                continue;
+            }
+            /** @var array<string, mixed> $rawVariationArr */
+            $rawVariationArr = $rawVariationData;
             // 1. Transformasikan array mentah ke DTO untuk type-safety
-            $variationDto = VariationOptionData::fromArray($rawVariationData);
+            $variationDto = VariationOptionData::fromArray($rawVariationArr);
 
             // 2. Petakan data yang akan disimpan ke database
             $variationData = [
@@ -202,6 +238,7 @@ class UpdateProductAction
 
             // 4. Proses Update jika ID variasi dikirim dan cocok dengan produk
             if ($variationDto->id) {
+                /** @var Variation|null $variation */
                 $variation = Variation::find($variationDto->id);
 
                 if ($variation && $variation->product_id === $product->id) {
@@ -209,12 +246,17 @@ class UpdateProductAction
 
                     // Tangani file digital untuk variasi yang di-update
                     if ($variationDto->is_digital) {
-                        if ($variation->digital_file && $variationDto->digital_file) {
+                        if ($variation->digital_file && is_array($variationDto->digital_file)) {
                             // Jika file lama ada, lakukan update
-                            $variation->digital_file()->update($variationDto->digital_file);
-                        } elseif ($variationDto->digital_file) {
+                            /** @var array<string, mixed> $vDigitalFile */
+                            $vDigitalFile = $variationDto->digital_file;
+                            $variation->digital_file()->update($vDigitalFile);
+                        } elseif (is_array($variationDto->digital_file)) {
                             // Jika file lama belum ada, buat baru dan track ID-nya
-                            $digital = $variation->digital_file()->create($variationDto->digital_file);
+                            /** @var array<string, mixed> $vDigitalFile */
+                            $vDigitalFile = $variationDto->digital_file;
+                            /** @var DigitalFile $digital */
+                            $digital = $variation->digital_file()->create($vDigitalFile);
                             $variation->update(['digital_file_tracker' => $digital->id]);
                         }
                     }
@@ -222,11 +264,15 @@ class UpdateProductAction
             }
             // 5. Proses Create jika tidak ada ID variasi (Variasi Baru)
             else {
+                /** @var Variation $variation */
                 $variation = $product->variation_options()->create($variationData);
 
                 // Tangani file digital untuk variasi baru
-                if ($variationDto->is_digital && $variationDto->digital_file) {
-                    $digital = $variation->digital_file()->create($variationDto->digital_file);
+                if ($variationDto->is_digital && is_array($variationDto->digital_file)) {
+                    /** @var array<string, mixed> $vDigitalFile */
+                    $vDigitalFile = $variationDto->digital_file;
+                    /** @var DigitalFile $digital */
+                    $digital = $variation->digital_file()->create($vDigitalFile);
                     $variation->update(['digital_file_tracker' => $digital->id]);
                 }
             }

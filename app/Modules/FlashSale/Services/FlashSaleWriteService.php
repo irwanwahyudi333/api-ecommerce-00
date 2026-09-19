@@ -25,4 +25,9 @@ final class FlashSaleWriteService
     {
         return $this->updateFlashSaleAction->execute($flashSale, $data);
     }
+
+    public function deleteFlashSale(FlashSale $flashSale): bool
+    {
+        return $flashSale->delete() ?? false;
+    }
 }

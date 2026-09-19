@@ -6,14 +6,17 @@ namespace App\Modules\OwnershipTransfer\Services;
 
 use App\Enums\OrderStatus;
 use App\Enums\Permission;
+use App\Models\Balance;
 use App\Models\Order;
 use App\Models\OwnershipTransfer;
 use App\Models\Shop;
+use App\Models\Withdraw;
 use App\Modules\OwnershipTransfer\DTO\OwnershipTransferData;
 use App\Modules\Shop\Events\OwnershipTransferStatusControl;
 use Carbon\Carbon;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -35,7 +38,7 @@ class OwnershipTransferService
         if ($shopId) {
             $shop = Shop::find($shopId);
 
-            return $shop && $shop->owner_id === $user->id;
+            return $shop && $shop->owner_id === $user->getAuthIdentifier();
         }
 
         return false;
@@ -54,13 +57,13 @@ class OwnershipTransferService
 
         if ($user->hasPermissionTo(Permission::STORE_OWNER->value)) {
             if ($request->type === 'from') {
-                return OwnershipTransfer::where('from', $user->id);
+                return OwnershipTransfer::where('from', $user->getAuthIdentifier());
             }
 
-            return OwnershipTransfer::where('to', $user->id);
+            return OwnershipTransfer::where('to', $user->getAuthIdentifier());
         }
 
-        abort(403, config('notice.NOT_AUTHORIZED'));
+        abort(403, is_string($msg = config('notice.NOT_AUTHORIZED')) ? $msg : 'Forbidden');
     }
 
     /**
@@ -87,7 +90,10 @@ class OwnershipTransferService
      */
     public function createTransfer(OwnershipTransferData $data): OwnershipTransfer
     {
-        return OwnershipTransfer::create($data->toArray());
+        /** @var OwnershipTransfer $transfer */
+        $transfer = OwnershipTransfer::create($data->toArray());
+
+        return $transfer;
     }
 
     /**
@@ -98,13 +104,15 @@ class OwnershipTransferService
     public function updateTransferStatus(int $id, string $status, Authenticatable $user): OwnershipTransfer
     {
         if (! $user->hasPermissionTo(Permission::SUPER_ADMIN->value)) {
-            throw new \Exception(config('notice.NOT_AUTHORIZED'));
+            throw new \Exception(is_string($msg = config('notice.NOT_AUTHORIZED')) ? $msg : 'Not authorized');
         }
 
         $transfer = OwnershipTransfer::findOrFail($id);
         $shop = $transfer->shop;
 
         if ($status === 'approved') {
+            /** @var Shop $shop */
+            $shop = $transfer->shop;
             $this->validateTransferConditions($shop);
         }
 
@@ -113,7 +121,10 @@ class OwnershipTransferService
 
         event(new OwnershipTransferStatusControl($transfer));
 
-        return $transfer->fresh();
+        /** @var OwnershipTransfer $fresh */
+        $fresh = $transfer->fresh();
+
+        return $fresh;
     }
 
     /**
@@ -131,11 +142,16 @@ class OwnershipTransferService
                 OrderStatus::OUT_FOR_DELIVERY->value,
             ])->count();
 
-        $currentBalance = $shop->balance?->current_balance ?? 0;
-        $pendingWithdrawals = $shop->withdraws->filter(fn ($w) => $w->status !== 'approved')->count();
+        /** @var Balance|null $balance */
+        $balance = $shop->balance;
+        $currentBalance = $balance ? $balance->current_balance : 0;
+
+        /** @var Collection<int, Withdraw> $withdraws */
+        $withdraws = $shop->withdraws;
+        $pendingWithdrawals = $withdraws->filter(fn ($w) => $w->status !== 'approved')->count();
 
         if ($incompleteOrders > 0 || $currentBalance > 1.00 || $pendingWithdrawals > 0) {
-            throw new \Exception(config('notice.COULD_NOT_SETTLE_THE_TRANSITION'));
+            throw new \Exception(is_string($msg = config('notice.COULD_NOT_SETTLE_THE_TRANSITION')) ? $msg : 'Could not settle transition');
         }
     }
 
@@ -149,7 +165,7 @@ class OwnershipTransferService
         $transfer = OwnershipTransfer::findOrFail($id);
 
         if (! $this->hasPermission($user, $transfer->shop_id)) {
-            throw new \Exception(config('notice.NOT_AUTHORIZED'));
+            throw new \Exception(is_string($msg = config('notice.NOT_AUTHORIZED')) ? $msg : 'Not authorized');
         }
 
         $transfer->delete();
@@ -157,6 +173,8 @@ class OwnershipTransferService
 
     /**
      * Get order info for a shop.
+     *
+     * @return array<string, mixed>
      */
     protected function getOrderInfo(int $shopId): array
     {
@@ -191,6 +209,8 @@ class OwnershipTransferService
 
     /**
      * Get refund info for a shop.
+     *
+     * @return array<mixed>
      */
     protected function getRefundInfo(int $shopId): array
     {
@@ -199,6 +219,8 @@ class OwnershipTransferService
 
     /**
      * Get withdrawal info for a shop.
+     *
+     * @return array<mixed>
      */
     protected function getWithdrawInfo(int $shopId): array
     {

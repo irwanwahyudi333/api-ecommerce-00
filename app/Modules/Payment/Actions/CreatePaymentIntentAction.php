@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\Payment\Actions;
 
+use App\Models\User;
 use App\Modules\Payment\Contracts\PaymentGatewayFactoryInterface;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Psr\Log\LoggerInterface;
@@ -15,15 +16,21 @@ final class CreatePaymentIntentAction
         private readonly LoggerInterface $logger,
     ) {}
 
+    /**
+     * @param  array<string, mixed>  $data
+     * @param  User  $user
+     * @return array<string, mixed>
+     */
     public function execute(array $data, Authenticatable $user): array
     {
-        $gateway = $data['gateway'] ?? 'stripe';
+        /** @var User $user */
+        $gateway = isset($data['gateway']) && is_string($data['gateway']) ? $data['gateway'] : 'stripe';
 
         try {
             $provider = $this->gatewayFactory->create($gateway);
 
             // Add customer info if not provided
-            if (! isset($data['customer_id']) && $user) {
+            if (! isset($data['customer_id'])) {
                 $customer = $provider->createCustomer([
                     'user_id' => $user->id,
                     'email' => $user->email,

@@ -3,7 +3,6 @@
 namespace App\Modules\PaymentMethod\Http\Requests;
 
 use App\Models\PaymentMethod;
-use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class SetDefaultPaymentMethodRequest extends FormRequest
@@ -19,7 +18,7 @@ class SetDefaultPaymentMethodRequest extends FormRequest
     /**
      * Get the validation rules that apply to the request.
      *
-     * @return array<string, ValidationRule|array|string>
+     * @return array<string, mixed>
      */
     public function rules(): array
     {
@@ -28,8 +27,11 @@ class SetDefaultPaymentMethodRequest extends FormRequest
         ];
     }
 
-    public function getPaymentMethod()
+    public function getPaymentMethod(): PaymentMethod
     {
-        return PaymentMethod::findOrFail($this->input('payment_method_id'));
+        /** @var PaymentMethod $method */
+        $method = PaymentMethod::findOrFail($this->input('payment_method_id'));
+
+        return $method;
     }
 }

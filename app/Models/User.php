@@ -24,6 +24,7 @@ use Spatie\Permission\Traits\HasRoles;
  * @property string $email
  * @property bool $is_active
  * @property int|null $shop_id
+ * @property Wallet|null $wallet
  */
 class User extends Authenticatable implements MustVerifyEmail
 {

@@ -11,6 +11,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * @property string|null $payment_gateway
+ * @property string|null $altered_payment_gateway
+ */
 class Order extends Model
 {
     use HasFactory;
@@ -104,6 +108,9 @@ class Order extends Model
         return $this->belongsTo(Shop::class, 'shop_id');
     }
 
+    /**
+     * @return HasMany<Order>
+     */
     public function children(): HasMany
     {
         return $this->hasMany(Order::class, 'parent_id', 'id');

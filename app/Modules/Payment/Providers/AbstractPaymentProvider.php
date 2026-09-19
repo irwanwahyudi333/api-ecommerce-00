@@ -45,16 +45,26 @@ abstract class AbstractPaymentProvider implements PaymentProviderInterface
         ]);
     }
 
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>|null
+     */
     public function initializePaymentMethod(array $data): ?array
     {
         return null; // Optional method
     }
 
+    /**
+     * @return array<int, string>
+     */
     public function getSupportedPaymentMethods(): array
     {
         return []; // Default empty
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function verifyPayment(string $transactionId): array
     {
         throw new \BadMethodCallException(
@@ -62,6 +72,9 @@ abstract class AbstractPaymentProvider implements PaymentProviderInterface
         );
     }
 
+    /**
+     * @param  array<string, mixed>  $data
+     */
     protected function validatePaymentData(array $data): void
     {
         $required = ['amount', 'currency'];
@@ -79,6 +92,10 @@ abstract class AbstractPaymentProvider implements PaymentProviderInterface
         }
     }
 
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
     protected function sanitizeCustomerData(array $data): array
     {
         // Remove sensitive information

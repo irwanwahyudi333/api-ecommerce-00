@@ -12,15 +12,24 @@ final class MessageData
         public readonly int $user_id,
     ) {}
 
+    /**
+     * @param  array<string, mixed>  $data
+     */
     public static function fromRequest(array $data, int $conversationId, int $userId): self
     {
+        $body = $data['message'];
+        assert(is_string($body));
+
         return new self(
-            body: $data['message'],
+            body: $body,
             conversation_id: $conversationId,
             user_id: $userId,
         );
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function toArray(): array
     {
         return [

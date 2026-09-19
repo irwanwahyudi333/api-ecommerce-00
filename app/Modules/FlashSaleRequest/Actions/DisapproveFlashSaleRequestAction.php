@@ -6,6 +6,7 @@ namespace App\Modules\FlashSaleRequest\Actions;
 
 use App\Models\FlashSale;
 use App\Models\FlashSaleRequest;
+use App\Models\Product;
 use App\Modules\FlashSale\Events\FlashSaleProcessed;
 
 final class DisapproveFlashSaleRequestAction
@@ -18,8 +19,9 @@ final class DisapproveFlashSaleRequestAction
         $flashSale = FlashSale::with('products')->find($request->flash_sale_id);
         $detachedProducts = [];
 
+        /** @var Product $product */
         foreach ($request->products as $product) {
-            if ($flashSale && $flashSale->products->contains($product->id)) {
+            if ($flashSale && $flashSale->products->contains((int) $product->id)) {
                 $flashSale->products()->detach($product->id);
                 $detachedProducts[] = $product->id;
             }
@@ -33,6 +35,7 @@ final class DisapproveFlashSaleRequestAction
             'detached_product_ids' => $detachedProducts,
             'requested_flash_sale' => $flashSale,
         ];
-        event(new FlashSaleProcessed('remove_attached_products', config('shop.default_language', 'id'), $eventData));
+        $language = config('shop.default_language', 'id');
+        event(new FlashSaleProcessed('remove_attached_products', is_string($language) ? $language : 'id', $eventData));
     }
 }

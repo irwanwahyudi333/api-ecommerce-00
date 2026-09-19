@@ -6,10 +6,12 @@ namespace App\Modules\Order\Http\Controllers;
 
 use App\Http\Controllers\BaseController;
 use App\Models\Order;
+use App\Models\User;
 use App\Modules\Order\Http\Resources\OrderResource;
 use App\Modules\Order\Services\OrderCacheService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class OrderQueryController extends BaseController
 {
@@ -21,8 +23,17 @@ class OrderQueryController extends BaseController
     {
         $this->authorize('viewAny', Order::class);
 
-        $perPage = (int) $request->get('limit', 15);
-        $orders = $this->cacheService->getCachedOrders($request, $request->user(), $perPage);
+        $limit = $request->get('limit', 15);
+        $perPage = is_numeric($limit) ? (int) $limit : 15;
+        $user = $request->user();
+        if (! $user instanceof User) {
+            throw new \Exception('Unauthenticated');
+        }
+        $orders = $this->cacheService->getCachedOrders($request, $user, $perPage);
+
+        if (! $orders instanceof LengthAwarePaginator) {
+            throw new \Exception('Expected LengthAwarePaginator');
+        }
 
         return $this->sendPaginated(
             $orders,
@@ -33,7 +44,11 @@ class OrderQueryController extends BaseController
 
     public function show(Request $request, string $identifier): JsonResponse
     {
-        $order = $this->cacheService->getCachedOrder($identifier, $request, $request->user());
+        $user = $request->user();
+        if (! $user instanceof User) {
+            throw new \Exception('Unauthenticated');
+        }
+        $order = $this->cacheService->getCachedOrder($identifier, $request, $user);
 
         $this->authorize('view', $order);
 
@@ -47,8 +62,17 @@ class OrderQueryController extends BaseController
     {
         $this->authorize('viewAny', Order::class);
 
-        $perPage = (int) $request->get('limit', 15);
-        $orders = $this->cacheService->getCachedOrders($request, $request->user(), $perPage);
+        $limit = $request->get('limit', 15);
+        $perPage = is_numeric($limit) ? (int) $limit : 15;
+        $user = $request->user();
+        if (! $user instanceof User) {
+            throw new \Exception('Unauthenticated');
+        }
+        $orders = $this->cacheService->getCachedOrders($request, $user, $perPage);
+
+        if (! $orders instanceof LengthAwarePaginator) {
+            throw new \Exception('Expected LengthAwarePaginator');
+        }
 
         return $this->sendPaginated(
             $orders,
@@ -62,7 +86,11 @@ class OrderQueryController extends BaseController
         $this->authorize('viewAny', Order::class);
 
         $shopId = $request->get('shop_id');
-        $stats = $this->cacheService->getCachedOrderStats($request->user(), $shopId);
+        $user = $request->user();
+        if (! $user instanceof User) {
+            throw new \Exception('Unauthenticated');
+        }
+        $stats = $this->cacheService->getCachedOrderStats($user, is_numeric($shopId) ? (int) $shopId : null);
 
         return $this->sendSuccess($stats, 'Order statistics retrieved successfully');
     }
@@ -70,9 +98,17 @@ class OrderQueryController extends BaseController
     public function myOrders(Request $request): JsonResponse
     {
         $user = $request->user();
-        $perPage = (int) $request->get('limit', 15);
+        if (! $user instanceof User) {
+            throw new \Exception('Unauthenticated');
+        }
+        $limit = $request->get('limit', 15);
+        $perPage = is_numeric($limit) ? (int) $limit : 15;
 
         $orders = $this->cacheService->getCachedOrders($request, $user, $perPage);
+
+        if (! $orders instanceof LengthAwarePaginator) {
+            throw new \Exception('Expected LengthAwarePaginator');
+        }
 
         return $this->sendPaginated(
             $orders,

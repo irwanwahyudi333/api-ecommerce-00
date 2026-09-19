@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\PaymentIntent\Http\Requests;
 
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class GetPaymentIntentRequest extends FormRequest
@@ -13,6 +14,9 @@ class GetPaymentIntentRequest extends FormRequest
         return true;
     }
 
+    /**
+     * @return array<string, ValidationRule|array<mixed>|string>
+     */
     public function rules(): array
     {
         return [

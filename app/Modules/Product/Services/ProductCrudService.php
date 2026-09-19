@@ -25,11 +25,11 @@ class ProductCrudService
 
     public function createProduct(ProductData $data, User $user): Product
     {
-        $this->validateShopOwnership($data->shopId, $user);
+        $this->validateShopOwnership($data->shop_id, $user);
 
         return DB::transaction(function () use ($data, $user) {
             try {
-                $product = $this->createProduct->execute($data);
+                $product = $this->createProduct->execute($data, (object) []);
 
                 // Invalidate relevant caches
                 if ($product->shop_id) {
@@ -62,13 +62,13 @@ class ProductCrudService
         $product = Product::findOrFail($productId);
 
         // Check if shop ownership changed
-        if ($data->shopId && $data->shopId !== $product->shop_id) {
-            $this->validateShopOwnership($data->shopId, $user);
+        if ($data->shop_id && $data->shop_id !== $product->shop_id) {
+            $this->validateShopOwnership($data->shop_id, $user);
         }
 
         return DB::transaction(function () use ($product, $data, $user) {
             try {
-                $updatedProduct = $this->updateProduct->execute($product, $data);
+                $updatedProduct = $this->updateProduct->execute($product, $data, (object) []);
 
                 // Invalidate caches
                 $this->cacheService->invalidateProductCache($product->id);
@@ -81,7 +81,7 @@ class ProductCrudService
                     'product_id' => $product->id,
                     'user_id' => $user->id,
                     'old_shop_id' => $product->shop_id,
-                    'new_shop_id' => $data->shopId,
+                    'new_shop_id' => $data->shop_id,
                     'action' => 'update',
                 ]);
 
@@ -133,7 +133,8 @@ class ProductCrudService
     {
         $product = Product::findOrFail($productId);
 
-        return DB::transaction(function () use ($product, $quantity, $user) {
+        /** @var Product $result */
+        $result = DB::transaction(function () use ($product, $quantity, $user) {
             try {
                 $product->quantity = $quantity;
                 $product->save();
@@ -149,7 +150,7 @@ class ProductCrudService
                     'action' => 'update_stock',
                 ]);
 
-                return $product->fresh();
+                return $product->fresh() ?? $product;
             } catch (\Exception $e) {
                 Log::error('Product stock update failed', [
                     'product_id' => $product->id,
@@ -159,6 +160,8 @@ class ProductCrudService
                 throw $e;
             }
         });
+
+        return $result;
     }
 
     private function validateShopOwnership(?int $shopId, User $user): void

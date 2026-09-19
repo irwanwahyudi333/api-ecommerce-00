@@ -7,12 +7,12 @@ namespace App\Modules\Message\Services;
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\Participant;
+use App\Models\User;
 use App\Modules\Message\Actions\CreateMessageAction;
 use App\Modules\Message\DTO\MessageData;
 use App\Modules\Message\Events\MessageSent;
 use Carbon\Carbon;
-use Illuminate\Contracts\Auth\Authenticatable;
-use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class MessageService
 {
@@ -21,7 +21,7 @@ class MessageService
     /**
      * Check if user has access to conversation.
      */
-    public function hasAccess(Authenticatable $user, Conversation $conversation): bool
+    public function hasAccess(User $user, Conversation $conversation): bool
     {
         // Customer yang memulai percakapan
         if ($user->id === $conversation->user_id) {
@@ -45,9 +45,9 @@ class MessageService
     /**
      * Get messages for a conversation with pagination.
      *
-     * @return Builder<Message>
+     * @return HasMany<Message, Conversation>
      */
-    public function getMessages(Conversation $conversation, int $perPage = 15): Builder
+    public function getMessages(Conversation $conversation, int $perPage = 15): HasMany
     {
         return $conversation->messages()
             ->with(['user'])
@@ -57,7 +57,7 @@ class MessageService
     /**
      * Mark messages as seen (update participant).
      */
-    public function markAsSeen(Conversation $conversation, Authenticatable $user): int
+    public function markAsSeen(Conversation $conversation, User $user): int
     {
         $updated = 0;
 
@@ -96,7 +96,7 @@ class MessageService
      *
      * @throws \Exception
      */
-    public function storeMessage(Conversation $conversation, MessageData $data, Authenticatable $user): Message
+    public function storeMessage(Conversation $conversation, MessageData $data, User $user): Message
     {
         // Determine recipient type
         $type = '';
@@ -105,7 +105,9 @@ class MessageService
         } elseif (in_array($conversation->shop_id, $user->shops()->pluck('id')->toArray()) || $user->shop_id === $conversation->shop_id) {
             $type = 'user'; // shop sends to customer
         } else {
-            throw new \Exception(config('notice.NOT_AUTHORIZED'));
+            $notice = config('notice.NOT_AUTHORIZED');
+            assert(is_string($notice));
+            throw new \Exception($notice);
         }
 
         $message = $this->createMessage->execute($data);
@@ -119,7 +121,7 @@ class MessageService
     /**
      * Get conversation by id with access check.
      */
-    public function getConversationForUser(int $conversationId, Authenticatable $user): Conversation
+    public function getConversationForUser(int $conversationId, User $user): Conversation
     {
         $shopIds = $user->shops()->pluck('id')->toArray();
 

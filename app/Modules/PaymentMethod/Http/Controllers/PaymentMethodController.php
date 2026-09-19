@@ -6,13 +6,16 @@ namespace App\Modules\PaymentMethod\Http\Controllers;
 
 use App\Http\Controllers\BaseController;
 use App\Models\PaymentMethod;
+use App\Models\User;
 use App\Modules\PaymentMethod\DTO\PaymentMethodData;
 use App\Modules\PaymentMethod\Http\Requests\PaymentMethodCreateRequest;
 use App\Modules\PaymentMethod\Http\Requests\SavePaymentMethodRequest;
 use App\Modules\PaymentMethod\Http\Requests\SetDefaultCardRequest;
 use App\Modules\PaymentMethod\Http\Resources\PaymentMethodResource;
 use App\Modules\PaymentMethod\Services\PaymentMethodService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class PaymentMethodController extends BaseController
 {
@@ -21,19 +24,21 @@ class PaymentMethodController extends BaseController
     /**
      * GET /payment-methods
      */
-    public function index(Request $request)
+    public function index(Request $request): AnonymousResourceCollection
     {
         $gateway = $request->query('gateway');
+        /** @var User $user */
+        $user = $request->user();
         if ($gateway) {
-            $methods = $this->pmService->getUserPaymentMethodsByGateway($request->user(), $gateway);
+            $methods = $this->pmService->getUserPaymentMethodsByGateway($user, (string) $gateway);
         } else {
-            $methods = $this->pmService->getUserPaymentMethods($request->user());
+            $methods = $this->pmService->getUserPaymentMethods($user);
         }
 
         return PaymentMethodResource::collection($methods);
     }
 
-    public function show(int $id)
+    public function show(int $id): PaymentMethodResource
     {
         $method = PaymentMethod::findOrFail($id); // Assuming ID is unique for settings
         $this->authorize('view', $method);
@@ -44,7 +49,7 @@ class PaymentMethodController extends BaseController
     /**
      * GET /payment-methods/gateways
      */
-    public function gateways(Request $request)
+    public function gateways(Request $request): JsonResponse
     {
         return response()->json([
             'gateways' => $this->pmService->getAvailableGateways(),
@@ -54,12 +59,14 @@ class PaymentMethodController extends BaseController
     /**
      * POST /payment-methods
      */
-    public function store(PaymentMethodCreateRequest $request)
+    public function store(PaymentMethodCreateRequest $request): PaymentMethodResource
     {
         $this->authorize('create', PaymentMethod::class);
 
         $data = PaymentMethodData::fromRequest($request->validated());
-        $method = $this->pmService->storeCard($data, $request->user());
+        /** @var User $user */
+        $user = $request->user();
+        $method = $this->pmService->storePaymentMethod($data, $user);
 
         return new PaymentMethodResource($method);
     }
@@ -67,7 +74,7 @@ class PaymentMethodController extends BaseController
     /**
      * DELETE /payment-methods/{id}
      */
-    public function destroy(Request $request, int $id)
+    public function destroy(Request $request, int $id): JsonResponse
     {
         $method = PaymentMethod::findOrFail($id);
         $this->authorize('delete', $method);
@@ -80,7 +87,7 @@ class PaymentMethodController extends BaseController
     /**
      * POST /payment-methods/save
      */
-    public function savePaymentMethod(SavePaymentMethodRequest $request)
+    public function savePaymentMethod(SavePaymentMethodRequest $request): PaymentMethodResource
     {
         $this->authorize('create', PaymentMethod::class);
 
@@ -92,7 +99,7 @@ class PaymentMethodController extends BaseController
     /**
      * POST /payment-methods/setup-intent
      */
-    public function saveCardIntent(Request $request)
+    public function saveCardIntent(Request $request): JsonResponse
     {
         $this->authorize('create', PaymentMethod::class);
 
@@ -100,8 +107,11 @@ class PaymentMethodController extends BaseController
             'gateway' => ['nullable', 'string', 'in:stripe,midtrans,xendit'],
         ]);
 
-        $gateway = $request->input('gateway', 'xendit');
-        $intent = $this->pmService->createSetupIntent($request->user(), $gateway);
+        $gatewayInput = $request->input('gateway', 'xendit');
+        $gateway = is_string($gatewayInput) ? $gatewayInput : 'xendit';
+        /** @var User $user */
+        $user = $request->user();
+        $intent = $this->pmService->initializePaymentMethod($user, $gateway);
 
         return response()->json($intent ?? ['status' => 'not_supported']);
     }
@@ -109,9 +119,10 @@ class PaymentMethodController extends BaseController
     /**
      * POST /payment-methods/set-default
      */
-    public function setDefaultCard(SetDefaultCardRequest $request)
+    public function setDefaultCard(SetDefaultCardRequest $request): PaymentMethodResource
     {
-        $method = $this->pmService->setDefaultCard($request->method_id);
+        $methodId = $request->input('method_id');
+        $method = $this->pmService->setDefaultPayment(is_numeric($methodId) ? (int) $methodId : 0);
         $this->authorize('setDefault', $method);
 
         return new PaymentMethodResource($method);

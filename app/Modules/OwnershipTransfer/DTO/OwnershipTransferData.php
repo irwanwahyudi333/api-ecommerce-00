@@ -15,18 +15,31 @@ final class OwnershipTransferData
         public readonly ?string $status,
     ) {}
 
+    /**
+     * @param  array<string, mixed>  $data
+     */
     public static function fromRequest(array $data, int $fromUserId): self
     {
+        /** @var int|string|float $shopIdRaw */
+        $shopIdRaw = $data['shop_id'];
+        /** @var int|string|float $vendorIdRaw */
+        $vendorIdRaw = $data['vendor_id'];
+        /** @var string|null $message */
+        $message = $data['message'] ?? null;
+
         return new self(
-            shop_id: $data['shop_id'],
+            shop_id: (int) $shopIdRaw,
             from: $fromUserId,
-            to: $data['vendor_id'],
-            message: $data['message'] ?? null,
+            to: (int) $vendorIdRaw,
+            message: $message,
             created_by: $fromUserId,
             status: 'pending',
         );
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function toArray(): array
     {
         return array_filter([

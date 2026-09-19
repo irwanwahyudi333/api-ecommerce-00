@@ -12,8 +12,10 @@ class UpdateFlashSaleAction
 {
     public function execute(FlashSale $flashSale, FlashSaleData $data): FlashSale
     {
-        $oldProductIds = $flashSale->sale_builder['product_ids'] ?? [];
-        $newProductIds = $data->sale_builder['product_ids'] ?? [];
+        /** @var array<int> $oldProductIds */
+        $oldProductIds = is_array($flashSale->sale_builder['product_ids'] ?? null) ? $flashSale->sale_builder['product_ids'] : [];
+        /** @var array<int> $newProductIds */
+        $newProductIds = is_array($data->sale_builder['product_ids'] ?? null) ? $data->sale_builder['product_ids'] : [];
 
         if (! empty($newProductIds)) {
             $flashSale->products()->sync($newProductIds);
@@ -27,14 +29,22 @@ class UpdateFlashSaleAction
 
         $flashSale->update($data->toArray());
 
-        return $flashSale->fresh();
+        $flashSale->refresh();
+
+        return $flashSale;
     }
 
+    /**
+     * @param  array<int>  $productIds
+     */
     private function setProductInFlashSale(array $productIds): void
     {
         Product::whereIn('id', $productIds)->update(['in_flash_sale' => true]);
     }
 
+    /**
+     * @param  array<int>  $productIds
+     */
     private function unsetProductFromFlashSale(array $productIds): void
     {
         Product::whereIn('id', $productIds)->update(['in_flash_sale' => false]);

@@ -11,6 +11,9 @@ use Illuminate\Http\Request;
 
 final class FlashSaleRequestQueryService
 {
+    /**
+     * @return Builder<FlashSaleRequest>
+     */
     public function getRequestsQuery(Request $request): Builder
     {
         $language = $request->language ?? config('shop.default_language', 'id');
@@ -23,6 +26,9 @@ final class FlashSaleRequestQueryService
         return FlashSaleRequest::with(['products', 'flashSale'])->findOrFail($id);
     }
 
+    /**
+     * @return Builder<Product>
+     */
     public function getRequestedProductsQuery(Request $request, int $vendorRequestId): Builder
     {
         $language = $request->language ?? config('shop.default_language', 'id');

@@ -22,6 +22,9 @@ class OrderCacheService
         private OrderQueryService $queryService
     ) {}
 
+    /**
+     * @return LengthAwarePaginator<int, Order>
+     */
     public function getCachedOrders(Request $request, User $user, int $perPage = 15): LengthAwarePaginator
     {
         // Don't cache if user has specific filters (dynamic data)
@@ -47,6 +50,9 @@ class OrderCacheService
             });
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function getCachedOrderStats(User $user, ?int $shopId = null): array
     {
         $cacheKey = $shopId
@@ -95,6 +101,9 @@ class OrderCacheService
         return "{$prefix}:{$userHash}:{$paramsHash}";
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     private function getCacheableQueryParams(Request $request): array
     {
         return [

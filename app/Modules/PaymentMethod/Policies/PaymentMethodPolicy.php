@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\PaymentMethod\Policies;
 
+use App\Models\PaymentGateway;
 use App\Models\PaymentMethod;
 use App\Models\User;
 
@@ -39,7 +40,10 @@ class PaymentMethodPolicy
             return false;
         }
 
-        return $method->paymentGateway->user_id === $user->id
+        /** @var PaymentGateway $gateway */
+        $gateway = $method->paymentGateway;
+
+        return $gateway->user_id === $user->id
             && $user->hasPermissionTo('payment_method.update');
     }
 
@@ -49,7 +53,10 @@ class PaymentMethodPolicy
             return false;
         }
 
-        return $method->paymentGateway->user_id === $user->id
+        /** @var PaymentGateway $gateway */
+        $gateway = $method->paymentGateway;
+
+        return $gateway->user_id === $user->id
             && $user->hasPermissionTo('payment_method.delete');
     }
 
@@ -59,7 +66,10 @@ class PaymentMethodPolicy
             return false;
         }
 
-        return $method->paymentGateway->user_id === $user->id
+        /** @var PaymentGateway $gateway */
+        $gateway = $method->paymentGateway;
+
+        return $gateway->user_id === $user->id
             && $user->hasPermissionTo('payment_method.set_default');
     }
 

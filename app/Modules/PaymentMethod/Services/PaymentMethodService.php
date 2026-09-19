@@ -6,6 +6,7 @@ namespace App\Modules\PaymentMethod\Services;
 
 use App\Models\PaymentGateway;
 use App\Models\PaymentMethod;
+use App\Models\User;
 use App\Modules\Payment\Factory\PaymentProviderFactory;
 use App\Modules\PaymentMethod\DTO\PaymentMethodData;
 use App\Modules\PaymentMethod\Events\PaymentMethods;
@@ -90,9 +91,14 @@ class PaymentMethodService
      */
     public function savePaymentMethod(Request $request): PaymentMethod
     {
-        $data = PaymentMethodData::fromRequest($request->all());
+        /** @var array<string, mixed> $input */
+        $input = $request->all();
+        $data = PaymentMethodData::fromRequest($input);
 
-        return $this->storePaymentMethod($data, $request->user());
+        /** @var User $user */
+        $user = $request->user();
+
+        return $this->storePaymentMethod($data, $user);
     }
 
     /**
@@ -111,7 +117,7 @@ class PaymentMethodService
 
         event(new PaymentMethods($method));
 
-        return $method->fresh();
+        return $method->refresh();
     }
 
     /**
@@ -122,7 +128,7 @@ class PaymentMethodService
         $method = PaymentMethod::findOrFail($id);
         /** @var PaymentGateway $paymentGateway */
         $paymentGateway = $method->paymentGateway;
-        $provider = PaymentProviderFactory::create($paymentGateway->gateway_name);
+        $provider = PaymentProviderFactory::create((string) $paymentGateway->gateway_name);
         $provider->detachPaymentMethod($method->method_key, $method->method_type);
         $method->forceDelete();
     }
@@ -131,6 +137,8 @@ class PaymentMethodService
      * Initialize a payment method for adding.
      *
      * @param  Authenticatable&object{id: int, email: string, name: string}  $user
+     * @param  array<string, mixed>  $options
+     * @return array<string, mixed>|null
      */
     public function initializePaymentMethod(Authenticatable $user, string $gateway = 'stripe', array $options = []): ?array
     {
@@ -139,12 +147,30 @@ class PaymentMethodService
         // Check if gateway requires customer creation
         $customerId = null;
         if ($provider->getGatewayName() === 'stripe' || $provider->getGatewayName() === 'xendit') {
-            $customer = $provider->createCustomer([
-                'user_id' => $user->id,
-                'email' => $user->email,
-                'name' => $user->name,
-                ...$options,
-            ]);
+            /** @var User $userModel */
+            $userModel = $user;
+            $customerData = [
+                'user_id' => $userModel->id,
+                'email' => $userModel->email,
+                'name' => $userModel->name,
+            ];
+
+            foreach (['reference_id', 'mobile_number', 'nationality', 'id_number', 'description'] as $key) {
+                if (isset($options[$key]) && is_string($options[$key])) {
+                    $customerData[$key] = $options[$key];
+                }
+            }
+            if (isset($options['addresses'])) {
+                $customerData['addresses'] = self::getList($options['addresses']);
+            }
+            if (isset($options['metadata'])) {
+                $customerData['metadata'] = self::getDict($options['metadata']);
+            }
+            if (isset($options['payment_methods'])) {
+                $customerData['payment_methods'] = self::getList($options['payment_methods']);
+            }
+
+            $customer = $provider->createCustomer($customerData);
             $customerId = $customer['customer_id'];
         }
 
@@ -155,7 +181,28 @@ class PaymentMethodService
     }
 
     /**
+     * @return array<int, mixed>
+     */
+    private static function getList(mixed $value): array
+    {
+        return is_array($value) ? array_values($value) : [];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private static function getDict(mixed $value): array
+    {
+        /** @var array<string, mixed> $arr */
+        $arr = is_array($value) ? $value : [];
+
+        return $arr;
+    }
+
+    /**
      * Get supported payment methods for a gateway.
+     *
+     * @return array<string>
      */
     public function getSupportedPaymentMethods(string $gateway): array
     {
@@ -166,18 +213,38 @@ class PaymentMethodService
 
     /**
      * Create a payment with specific payment method type.
+     *
+     * @param array{
+     *     amount: float,
+     *     currency: string,
+     *     order_tracking_number?: string,
+     *     customer_id?: string,
+     *     payment_method_id?: string,
+     *     payment_method_type?: string,
+     *     email?: string,
+     *     name?: string,
+     *     description?: string,
+     *     metadata?: array<string, mixed>,
+     *     payment_method_options?: array<string, mixed>,
+     *     billing_address?: array<string, mixed>,
+     *     shipping_address?: array<string, mixed>,
+     *     items?: array<int, mixed>
+     * } $data
+     * @return array<string, mixed>
      */
     public function createPayment(array $data, string $gateway, Authenticatable $user): array
     {
         $provider = PaymentProviderFactory::create($gateway);
 
         // Add customer info if not provided
-        if (! isset($data['customer_id']) && $user) {
+        if (! isset($data['customer_id'])) {
+            /** @var User $userModel */
+            $userModel = $user;
             // Get or create customer
             $customer = $provider->createCustomer([
-                'user_id' => $user->id,
-                'email' => $user->email,
-                'name' => $user->name,
+                'user_id' => $userModel->id,
+                'email' => $userModel->email,
+                'name' => $userModel->name,
             ]);
             $data['customer_id'] = $customer['customer_id'];
         }
@@ -195,6 +262,8 @@ class PaymentMethodService
 
     /**
      * Get all available gateways.
+     *
+     * @return array<int, string>
      */
     public function getAvailableGateways(): array
     {

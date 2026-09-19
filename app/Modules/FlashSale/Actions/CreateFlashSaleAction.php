@@ -14,7 +14,8 @@ class CreateFlashSaleAction
     {
         $flashSale = FlashSale::create($data->toArray());
 
-        if (! empty($data->sale_builder['product_ids'])) {
+        if (! empty($data->sale_builder['product_ids']) && is_array($data->sale_builder['product_ids'])) {
+            /** @var array<int> $productIds */
             $productIds = $data->sale_builder['product_ids'];
             $flashSale->products()->attach($productIds);
             $this->setProductInFlashSale($productIds);
@@ -23,6 +24,9 @@ class CreateFlashSaleAction
         return $flashSale;
     }
 
+    /**
+     * @param  array<int>  $productIds
+     */
     private function setProductInFlashSale(array $productIds): void
     {
         Product::whereIn('id', $productIds)->update(['in_flash_sale' => true]);

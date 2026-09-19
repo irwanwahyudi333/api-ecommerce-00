@@ -15,6 +15,9 @@ class CreateOrderRequest extends FormRequest
         return true; // Policy akan di cek di controller
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function rules(): array
     {
         return [

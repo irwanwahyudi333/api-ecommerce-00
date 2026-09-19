@@ -27,6 +27,8 @@ class UpdateManufacturerAction
 
         $manufacturer->update($attributes);
 
-        return $manufacturer->fresh();
+        $manufacturer->refresh();
+
+        return $manufacturer;
     }
 }

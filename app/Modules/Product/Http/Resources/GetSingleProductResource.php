@@ -2,13 +2,25 @@
 
 namespace App\Modules\Product\Http\Resources;
 
+use App\Models\AttributeValue;
+use App\Models\Product;
 use App\Modules\Category\Http\Resources\CategoryResource;
 use App\Modules\Tag\Http\Resources\TagResource;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/**
+ * @mixin Product
+ *
+ * @property Product $resource
+ */
 class GetSingleProductResource extends JsonResource
 {
-    public function toArray($request)
+    /**
+     * @param  Request  $request
+     * @return array<string, mixed>
+     */
+    public function toArray($request): array
     {
         return [
             'id' => $this->resource->id,
@@ -23,16 +35,19 @@ class GetSingleProductResource extends JsonResource
             'metas' => $this->resource->metas,
             'digital_file' => $this->resource->digital_file,
             'variations' => $this->whenLoaded('variations', function () {
-                return [
-                    'id' => $this->resource->variations->id,
-                    'slug' => $this->resource->variations->slug,
-                    'attribute_id' => $this->resource->variations->attribute_id,
-                    'value' => $this->resource->variations->value,
-                    'language' => $this->resource->variations->language,
-                    'meta' => $this->resource->variations->meta,
-                    'translated_languages' => $this->resource->variations->translated_languages,
-                    'attribute' => $this->resource->variations->attribute,
-                ];
+                return $this->resource->variations->map(function ($v) {
+                    /** @var AttributeValue $v */
+                    return [
+                        'id' => $v->id,
+                        'slug' => $v->slug,
+                        'attribute_id' => $v->attribute_id,
+                        'value' => $v->value,
+                        'language' => $v->language,
+                        'meta' => $v->meta,
+                        'translated_languages' => $v->translated_languages,
+                        'attribute' => $v->attribute,
+                    ];
+                });
             }),
             'variation_options' => $this->resource->variation_options,
             'shop_id' => $this->resource->shop_id,

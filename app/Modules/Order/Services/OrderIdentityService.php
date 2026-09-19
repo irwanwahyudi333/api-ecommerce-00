@@ -31,6 +31,9 @@ class OrderIdentityService
         return route('export_order.token', ['token' => $token->token]);
     }
 
+    /**
+     * @param  array<mixed>  $translatedText
+     */
     public function getInvoiceTokenSecure(int $userId, int $orderId, string $language, array $translatedText, bool $isRtl): string
     {
         $payload = json_encode([

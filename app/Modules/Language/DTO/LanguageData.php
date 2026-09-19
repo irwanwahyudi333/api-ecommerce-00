@@ -12,12 +12,15 @@ final class LanguageData
         public readonly string $flag,
     ) {}
 
+    /**
+     * @param  array<string, mixed>  $data
+     */
     public static function fromRequest(array $data): self
     {
         return new self(
-            language_name: $data['language_name'],
-            language_code: $data['language_code'],
-            flag: $data['flag'],
+            language_name: is_string($data['language_name'] ?? null) ? $data['language_name'] : '',
+            language_code: is_string($data['language_code'] ?? null) ? $data['language_code'] : '',
+            flag: is_string($data['flag'] ?? null) ? $data['flag'] : '',
         );
     }
 }

@@ -22,18 +22,18 @@ interface PaymentProviderInterface
      *     email?: string,
      *     name?: string,
      *     description?: string,
-     *     metadata?: array,
-     *     payment_method_options?: array,
-     *     billing_address?: array,
-     *     shipping_address?: array,
-     *     items?: array
+     *     metadata?: array<string, mixed>,
+     *     payment_method_options?: array<string, mixed>,
+     *     billing_address?: array<string, mixed>,
+     *     shipping_address?: array<string, mixed>,
+     *     items?: array<int, mixed>
      * } $data
      * @return array{
      *     id: string,
      *     status: string,
      *     payment_method_type?: string,
      *     payment_method?: mixed,
-     *     actions?: array,
+     *     actions?: array<int, mixed>,
      *     redirect_url?: string,
      *     checkout_url?: string,
      *     authorization_url?: string,
@@ -55,19 +55,19 @@ interface PaymentProviderInterface
      *     name?: string,
      *     reference_id?: string,
      *     mobile_number?: string,
-     *     addresses?: array,
-     *     metadata?: array,
+     *     addresses?: array<int, mixed>,
+     *     metadata?: array<string, mixed>,
      *     nationality?: string,
      *     id_number?: string,
      *     description?: string,
-     *     payment_methods?: array
+     *     payment_methods?: array<int, mixed>
      * } $data
      * @return array{
      *     customer_id: string,
      *     reference_id?: string,
      *     email?: string,
      *     name?: string,
-     *     metadata?: array
+     *     metadata?: array<string, mixed>
      * }
      */
     public function createCustomer(array $data): array;
@@ -93,8 +93,10 @@ interface PaymentProviderInterface
     public function savePaymentMethod(object $paymentMethodData, Authenticatable $user, ?string $type = null): PaymentMethod;
 
     /**
-     * Create a payment initialization for adding a new payment method.
-     * For Stripe: Setup Intent, for others: Payment initialization
+     * Initialize a payment method for adding.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>|null
      */
     public function initializePaymentMethod(array $data): ?array;
 

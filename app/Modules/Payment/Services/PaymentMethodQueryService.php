@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Payment\Services;
 
 use App\Models\PaymentMethod;
+use App\Models\User;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Cache;
@@ -18,6 +19,7 @@ final class PaymentMethodQueryService
      */
     public function getUserPaymentMethods(Authenticatable $user): Collection
     {
+        /** @var User $user */
         $cacheKey = "payment_methods.user.{$user->id}";
 
         return Cache::remember($cacheKey, self::CACHE_TTL, function () use ($user) {
@@ -37,6 +39,7 @@ final class PaymentMethodQueryService
      */
     public function getUserPaymentMethodsByGateway(Authenticatable $user, string $gateway): Collection
     {
+        /** @var User $user */
         $cacheKey = "payment_methods.user.{$user->id}.gateway.{$gateway}";
 
         return Cache::remember($cacheKey, self::CACHE_TTL, function () use ($user, $gateway) {
@@ -57,6 +60,7 @@ final class PaymentMethodQueryService
      */
     public function getUserPaymentMethodsByType(Authenticatable $user, string $type): Collection
     {
+        /** @var User $user */
         $cacheKey = "payment_methods.user.{$user->id}.type.{$type}";
 
         return Cache::remember($cacheKey, self::CACHE_TTL, function () use ($user, $type) {
@@ -74,6 +78,7 @@ final class PaymentMethodQueryService
 
     public function findByIdAndUser(int $id, Authenticatable $user): ?PaymentMethod
     {
+        /** @var User $user */
         return PaymentMethod::query()
             ->where('id', $id)
             ->whereHas('paymentGateway', function ($query) use ($user) {
@@ -85,9 +90,11 @@ final class PaymentMethodQueryService
 
     public function clearUserCache(Authenticatable $user): void
     {
-        Cache::forget("payment_methods.user.{$user->id}");
-        Cache::forget("payment_methods.user.{$user->id}.gateway.stripe");
-        Cache::forget("payment_methods.user.{$user->id}.gateway.midtrans");
-        Cache::forget("payment_methods.user.{$user->id}.gateway.xendit");
+        /** @var User $user */
+        $userId = $user->id;
+        Cache::forget("payment_methods.user.{$userId}");
+        Cache::forget("payment_methods.user.{$userId}.gateway.stripe");
+        Cache::forget("payment_methods.user.{$userId}.gateway.midtrans");
+        Cache::forget("payment_methods.user.{$userId}.gateway.xendit");
     }
 }

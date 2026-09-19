@@ -62,19 +62,19 @@ class CreateOrderAction
             // 4. Interaksi Sistem Wallet Poin (sebelum order dibuat)
             if ($data->use_wallet_points && $user && $user->wallet) {
                 $wallet = $user->wallet;
-                $walletCurrency = $this->walletService->walletPointsToCurrency($wallet->available_points);
+                $walletCurrency = $this->walletService->walletPointsToCurrency((int) $wallet->available_points);
                 $remainingTotal = $data->paid_total;
 
                 if ($walletCurrency >= $remainingTotal) {
                     // Wallet cukup untuk bayar semua
-                    $pointsToDeduct = $this->walletService->currencyToWalletPoints($remainingTotal);
+                    $pointsToDeduct = $this->walletService->currencyToWalletPoints((float) $remainingTotal);
                     $data->payment_gateway = PaymentGatewayType::FULL_WALLET_PAYMENT->value;
                     $data->order_status = OrderStatus::COMPLETED->value;
                     $data->payment_status = PaymentStatus::SUCCESS->value;
                     $data->paid_total = $data->total; // total tetap utuh, payment status jadi success
                 } else {
                     // Wallet hanya sebagian
-                    $pointsToDeduct = $wallet->available_points;
+                    $pointsToDeduct = (int) $wallet->available_points;
                     $data->paid_total = $remainingTotal - $walletCurrency;
                 }
             }
@@ -83,7 +83,7 @@ class CreateOrderAction
             $order = $this->persistOrderAction->execute($data);
 
             // 6. Jika ada poin yang digunakan, lakukan pengurangan dan catat transaksi
-            if ($pointsToDeduct > 0) {
+            if ($pointsToDeduct > 0 && $user) {
                 $this->walletService->deductPoints($user->id, $pointsToDeduct);
                 OrderWalletPoint::create([
                     'amount' => $pointsToDeduct,
@@ -94,7 +94,7 @@ class CreateOrderAction
             // 7. Attach produk dan buat child orders
             if ($data->products) {
                 $this->attachProducts($order, $data->products);
-                $this->createChildOrders($order, $data);
+                $this->createChildOrders($order, $data, $settings, $user);
             }
 
             // 8. Inisiasi Payment Gateway Intent Eksternal
@@ -103,11 +103,11 @@ class CreateOrderAction
                 PaymentGatewayType::CASH_ON_DELIVERY->value,
                 PaymentGatewayType::FULL_WALLET_PAYMENT->value,
             ], true)) {
-                $intent = $this->paymentService->createPaymentIntent($order, $settings, $order->payment_gateway);
+                $intent = $this->paymentService->createPaymentIntent($order, request(), (string) $order->payment_gateway);
                 PaymentIntent::create([
                     'order_id' => $order->id,
                     'tracking_number' => $order->tracking_number,
-                    'payment_gateway' => ucfirst($order->payment_gateway),
+                    'payment_gateway' => ucfirst((string) $order->payment_gateway),
                     'payment_intent_info' => $intent,
                 ]);
             }
@@ -149,6 +149,9 @@ class CreateOrderAction
         return min((float) $coupon->amount, $amount);
     }
 
+    /**
+     * @return array{amount: float, discount: float, sales_tax: float, delivery_fee: float, paid_total: float, total: float}
+     */
     private function recalculateOrderAmounts(OrderData $data): array
     {
         $products = $data->products;
@@ -167,16 +170,17 @@ class CreateOrderAction
             : collect();
 
         foreach ($products as $item) {
+            /** @var array{product_id: int|string, variation_option_id?: int|string|null, order_quantity?: int} $item */
             $productId = $item['product_id'];
-            $variationId = $item['variation_option_id'] ?? null;
-            $quantity = $item['order_quantity'] ?? 0;
+            $variationId = isset($item['variation_option_id']) ? $item['variation_option_id'] : null;
+            $quantity = isset($item['order_quantity']) ? $item['order_quantity'] : 0;
 
             if ($quantity <= 0) {
                 throw new BadRequestHttpException('Invalid order quantity for product: '.$productId);
             }
 
-            $product = $productModels->get($productId);
-            if (! $product) {
+            $product = $productModels->get((string) $productId);
+            if (! $product instanceof Product) {
                 throw new BadRequestHttpException('Product not found: '.$productId);
             }
 
@@ -184,8 +188,8 @@ class CreateOrderAction
             $unitPrice = (float) ($product->sale_price ?? $product->price);
 
             if ($variationId) {
-                $variation = $variationModels->get($variationId);
-                if (! $variation || $variation->product_id !== $productId) {
+                $variation = $variationModels->get((string) $variationId);
+                if (! $variation instanceof Variation || $variation->product_id !== $productId) {
                     throw new BadRequestHttpException('Variation not found for product: '.$productId);
                 }
                 $unitPrice = (float) ($variation->sale_price ?? $variation->price);
@@ -237,10 +241,15 @@ class CreateOrderAction
         ];
     }
 
+    /**
+     * @param  array<array-key, mixed>  $products
+     */
     private function attachProducts(Order $order, array $products): void
     {
         $order->products()->attach($products);
         foreach ($products as $cartProduct) {
+            /** @var array{product_id: int|string, variation_option_id?: int|string|null, order_quantity?: int, from?: string, to?: string} $cartProduct */
+            /** @var Product|null $productModel */
             $productModel = Product::find($cartProduct['product_id']);
             if ($productModel) {
                 $this->handleDigitalFiles($cartProduct, $order, $productModel);
@@ -249,9 +258,14 @@ class CreateOrderAction
         }
     }
 
+    /**
+     * @param  array{product_id: int|string, variation_option_id?: int|string|null, order_quantity?: int, from?: string, to?: string}  $product
+     */
     private function handleDigitalFiles(array $product, Order $order, Product $productModel): void
     {
-        if (! $productModel->is_digital) {
+        /** @var bool $isDigital */
+        $isDigital = $productModel->is_digital ?? false;
+        if (! $isDigital) {
             return;
         }
         $digitalFile = $productModel->digital_file;
@@ -259,32 +273,39 @@ class CreateOrderAction
             return;
         }
 
-        for ($i = 0; $i < $product['order_quantity']; $i++) {
+        $quantity = is_numeric($product['order_quantity'] ?? null) ? (int) $product['order_quantity'] : 1;
+        for ($i = 0; $i < $quantity; $i++) {
             OrderedFile::create([
                 'purchase_key' => Str::random(16),
-                'digital_file_id' => $digitalFile->id,
+                'digital_file_id' => is_numeric($id = $digitalFile->getAttribute('id')) ? (int) $id : 0,
                 'customer_id' => $order->customer_id,
                 'tracking_number' => $order->tracking_number,
             ]);
         }
     }
 
+    /**
+     * @param  array{product_id: int|string, variation_option_id?: int|string|null, order_quantity?: int, from?: string, to?: string}  $product
+     */
     private function handleRentalProduct(array $product, Order $order, Product $productModel): void
     {
-        if (! $productModel->is_rental) {
+        /** @var bool $isRental */
+        $isRental = $productModel->is_rental ?? false;
+        if (! $isRental) {
             return;
         }
         $availabilityData = [
-            'from' => Carbon::parse($product['from']),
-            'to' => Carbon::parse($product['to']),
-            'order_quantity' => $product['order_quantity'],
-            'order_id' => $order->id,
+            'from' => Carbon::parse(is_string($product['from'] ?? null) ? $product['from'] : null),
+            'to' => Carbon::parse(is_string($product['to'] ?? null) ? $product['to'] : null),
+            'order_quantity' => $product['order_quantity'] ?? 1,
+            'order_id' => is_numeric($id = $order->getAttribute('id')) ? (int) $id : 0,
             'language' => $order->language,
         ];
 
         if (isset($product['variation_option_id'])) {
+            /** @var Variation|null $variation */
             $variation = Variation::find($product['variation_option_id']);
-            if ($variation) {
+            if ($variation instanceof Variation) {
                 $variation->availabilities()->create($availabilityData);
             }
         } else {
@@ -292,14 +313,16 @@ class CreateOrderAction
         }
     }
 
-    private function createChildOrders(Order $parentOrder, OrderData $data): void
+    private function createChildOrders(Order $parentOrder, OrderData $data, Settings $settings, ?User $user = null): void
     {
         $productsByShop = [];
-        $productIds = array_column($data->products, 'product_id');
+        $dataProducts = $data->products ?? [];
+        $productIds = array_column($dataProducts, 'product_id');
         $productModels = Product::whereIn('id', $productIds)->get()->keyBy('id');
 
-        foreach ($data->products as $cartProduct) {
-            $product = $productModels->get($cartProduct['product_id']);
+        foreach ($dataProducts as $cartProduct) {
+            /** @var array{product_id: int|string, subtotal: float} $cartProduct */
+            $product = $productModels->get((string) $cartProduct['product_id']);
             if ($product) {
                 $productsByShop[$product->shop_id][] = $cartProduct;
             }
@@ -310,7 +333,7 @@ class CreateOrderAction
             $childData = new OrderData(
                 tracking_number: $this->identityService->generateTrackingNumber(),
                 customer_id: $parentOrder->customer_id,
-                shop_id: $shopId,
+                shop_id: (int) $shopId,
                 language: $parentOrder->language,
                 order_status: $parentOrder->order_status,
                 payment_status: $parentOrder->payment_status,
@@ -323,9 +346,9 @@ class CreateOrderAction
                 altered_payment_gateway: $parentOrder->altered_payment_gateway,
                 discount: 0.0,
                 coupon_id: null,
-                logistics_provider: $parentOrder->logistics_provider,
-                billing_address: $parentOrder->billing_address,
-                shipping_address: $parentOrder->shipping_address,
+                logistics_provider: is_scalar($parentOrder->logistics_provider) ? (string) $parentOrder->logistics_provider : null,
+                billing_address: is_array($parentOrder->billing_address) ? $parentOrder->billing_address : null,
+                shipping_address: is_array($parentOrder->shipping_address) ? $parentOrder->shipping_address : null,
                 delivery_fee: 0.0,
                 customer_contact: $parentOrder->customer_contact,
                 customer_name: $parentOrder->customer_name,
@@ -336,7 +359,7 @@ class CreateOrderAction
                 isFullWalletPayment: false,
             );
 
-            $childOrder = resolve(self::class)->execute($childData);
+            $childOrder = resolve(self::class)->execute($childData, $settings, $user);
             $this->attachProducts($childOrder, $cartProducts);
             event(new OrderReceived($childOrder));
         }

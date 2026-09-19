@@ -17,9 +17,9 @@ class ProductMetricService
      */
     public function getBestSellingProducts(Request $request): Collection
     {
-        $limit = $request->limit ?? 10;
-        $language = $request->language ?? config('shop.default_language', 'id');
-        $range = $request->range ?? '';
+        $limit = is_numeric($request->limit) ? (int) $request->limit : 10;
+        $language = is_string($request->language) ? $request->language : (is_string(config('shop.default_language')) ? config('shop.default_language') : 'id');
+        $range = is_numeric($request->range) ? (int) $request->range : 0;
         $typeId = $this->resolveTypeId($request, $language);
 
         $query = Product::select('products.*')
@@ -35,14 +35,14 @@ class ProductMetricService
         if ($request->filled('shop_id')) {
             $query->where('products.shop_id', $request->shop_id);
         }
-        if ($range) {
-            $query->whereDate('products.created_at', '>', Carbon::now()->subDays((int) $range));
+        if ($range > 0) {
+            $query->whereDate('products.created_at', '>', Carbon::now()->subDays($range));
         }
         if ($typeId) {
             $query->where('products.type_id', $typeId);
         }
 
-        return $query->take((int) $limit)->get();
+        return $query->take($limit)->get();
     }
 
     /**
@@ -50,9 +50,9 @@ class ProductMetricService
      */
     public function getPopularProducts(Request $request): Collection
     {
-        $limit = $request->limit ?? 10;
-        $language = $request->language ?? config('shop.default_language', 'id');
-        $range = $request->range ?? '';
+        $limit = is_numeric($request->limit) ? (int) $request->limit : 10;
+        $language = is_string($request->language) ? $request->language : (is_string(config('shop.default_language')) ? config('shop.default_language') : 'id');
+        $range = is_numeric($request->range) ? (int) $request->range : 0;
         $typeId = $this->resolveTypeId($request, $language);
 
         $query = Product::withCount('orders')
@@ -63,20 +63,20 @@ class ProductMetricService
         if ($request->filled('shop_id')) {
             $query->where('shop_id', $request->shop_id);
         }
-        if ($range) {
-            $query->whereDate('created_at', '>', Carbon::now()->subDays((int) $range));
+        if ($range > 0) {
+            $query->whereDate('created_at', '>', Carbon::now()->subDays($range));
         }
         if ($typeId) {
             $query->where('type_id', $typeId);
         }
 
-        return $query->take((int) $limit)->get();
+        return $query->take($limit)->get();
     }
 
     private function resolveTypeId(Request $request, string $language): ?int
     {
         if ($request->filled('type_id')) {
-            return (int) $request->type_id;
+            return is_numeric($request->type_id) ? (int) $request->type_id : null;
         }
         if ($request->filled('type_slug')) {
             $type = Type::where('slug', $request->type_slug)
@@ -87,5 +87,30 @@ class ProductMetricService
         }
 
         return null;
+    }
+
+    /**
+     * @return Collection<int, Product>
+     */
+    public function getLowStockProducts(Request $request, int $threshold): Collection
+    {
+        $limit = is_numeric($request->limit) ? (int) $request->limit : 10;
+
+        return Product::whereRaw('quantity - reserved_quantity <= ?', [$threshold])
+            ->take($limit)
+            ->get();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function getSalesMetrics(int $shopId, string $period): array
+    {
+        return [
+            'total_sales' => 0,
+            'revenue' => 0,
+            'period' => $period,
+            'shop_id' => $shopId,
+        ];
     }
 }

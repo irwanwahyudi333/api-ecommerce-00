@@ -25,7 +25,10 @@ final class SetDefaultPaymentMethodAction
 
             Event::dispatch(new PaymentMethodUpdated($method));
 
-            return $method->fresh();
+            /** @var PaymentMethod $freshMethod */
+            $freshMethod = $method->fresh() ?? $method;
+
+            return $freshMethod;
         });
     }
 }

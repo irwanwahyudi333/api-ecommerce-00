@@ -6,6 +6,7 @@ namespace App\Modules\Order\Services;
 
 use App\Models\Order;
 use App\Models\Refund;
+use App\Models\Settings;
 use App\Models\User;
 use App\Modules\Order\Actions\CreateOrderAction;
 use App\Modules\Order\Actions\UpdateOrderStatusAction;
@@ -27,14 +28,9 @@ class OrderTransactionService
     {
         return DB::transaction(function () use ($data, $user) {
             try {
-                // Validate inventory availability
-                $this->inventoryService->validateInventoryAvailability($data);
-
                 // Create order
-                $order = $this->createOrder->execute($data, $user);
-
-                // Decrement inventory
-                $this->inventoryService->decrementInventory($order);
+                $settings = Settings::getData($data->language ?? 'id');
+                $order = $this->createOrder->execute($data, $settings, $user);
 
                 // Invalidate cache
                 $this->cacheService->invalidateAllOrderCache();
@@ -53,7 +49,7 @@ class OrderTransactionService
                 Log::error('Order creation failed', [
                     'error' => $e->getMessage(),
                     'user_id' => $user->id,
-                    'data' => $data->toArray(),
+                    'data' => (array) $data,
                 ]);
                 throw $e;
             }
@@ -100,18 +96,19 @@ class OrderTransactionService
     {
         $order = Order::findOrFail($orderId);
 
-        return DB::transaction(function () use ($order, $user, $reason) {
+        /** @var Order $result */
+        $result = DB::transaction(function () use ($order, $user, $reason) {
             try {
                 // Cancel order
                 $order->order_status = 'order-cancelled';
-                $order->cancelled_at = now();
+                $order->setAttribute('cancelled_at', now());
                 if ($reason) {
                     $order->note = $reason;
                 }
                 $order->save();
 
                 // Restore inventory
-                $this->inventoryService->restoreInventory($order);
+                $this->inventoryService->restoreProductInventoryBulk($order);
 
                 // Handle refund if payment was made
                 $this->handleRefund($order, $user);
@@ -137,18 +134,21 @@ class OrderTransactionService
                 throw $e;
             }
         });
+
+        return $result;
     }
 
     public function updatePaymentStatus(int $orderId, string $paymentStatus, ?string $paymentNote = null, ?User $user = null): Order
     {
         $order = Order::findOrFail($orderId);
 
-        return DB::transaction(function () use ($order, $paymentStatus, $paymentNote, $user) {
+        /** @var Order $result */
+        $result = DB::transaction(function () use ($order, $paymentStatus, $paymentNote, $user) {
             $order->payment_status = $paymentStatus;
-            $order->payment_note = $paymentNote;
+            $order->setAttribute('payment_note', $paymentNote);
             $order->save();
 
-            $this->cacheService->invalidateOrderCache($order->id, $user?->id);
+            $this->cacheService->invalidateOrderCache($order->id, $user ? $user->id : 0);
 
             Log::info('Payment status updated', [
                 'order_id' => $order->id,
@@ -159,6 +159,8 @@ class OrderTransactionService
 
             return $order->fresh();
         });
+
+        return $result;
     }
 
     private function handleStatusChange(Order $order, string $status, User $user): void
@@ -181,10 +183,12 @@ class OrderTransactionService
     private function handleOrderCompleted(Order $order, User $user): void
     {
         // Commission calculation logic
-        if ($order->commission_rate > 0) {
-            $commission = $order->total * ($order->commission_rate / 100);
-            $order->admin_revenue = $commission;
-            $order->shop_revenue = $order->total - $commission;
+        $commissionRateAttr = $order->getAttribute('commission_rate');
+        $commissionRate = is_numeric($commissionRateAttr) ? (float) $commissionRateAttr : 0.0;
+        if ($commissionRate > 0) {
+            $commission = $order->total * ($commissionRate / 100);
+            $order->setAttribute('admin_revenue', $commission);
+            $order->setAttribute('shop_revenue', $order->total - $commission);
             $order->save();
         }
 

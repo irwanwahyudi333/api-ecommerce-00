@@ -17,10 +17,10 @@ class NotifyLogsService
      *
      * @return Builder<NotifyLogs>
      */
-    public function getNotifyLogsQuery(Request $request, Authenticatable $user): Builder
+    public function getNotifyLogsQuery(Request $request, ?Authenticatable $user): Builder
     {
         $query = NotifyLogs::with('senderUser')
-            ->where('receiver', $user->id)
+            ->where('receiver', $user?->getAuthIdentifier())
             ->orderBy('created_at', 'desc');
 
         if ($request->filled('notify_type')) {
@@ -46,7 +46,10 @@ class NotifyLogsService
         $log->is_read = true;
         $log->save();
 
-        return $log->fresh();
+        /** @var NotifyLogs $freshLog */
+        $freshLog = $log->fresh();
+
+        return $freshLog;
     }
 
     /**

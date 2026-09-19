@@ -6,6 +6,7 @@ namespace App\Modules\Order\Http\Controllers;
 
 use App\Http\Controllers\BaseController;
 use App\Models\Order;
+use App\Models\User;
 use App\Modules\Order\DTO\OrderData;
 use App\Modules\Order\Http\Requests\CreateOrderRequest;
 use App\Modules\Order\Http\Requests\UpdateOrderRequest;
@@ -24,8 +25,12 @@ class OrderTransactionController extends BaseController
     {
         $this->authorize('create', Order::class);
 
+        $user = $request->user();
+        if (! $user instanceof User) {
+            throw new \Exception('Unauthenticated');
+        }
         $data = OrderData::fromRequest($request->validated());
-        $order = $this->transactionService->createOrder($data, $request->user());
+        $order = $this->transactionService->createOrder($data, $user);
 
         return $this->sendSuccess(
             new OrderResource($order),
@@ -39,10 +44,15 @@ class OrderTransactionController extends BaseController
         $order = Order::findOrFail($id);
         $this->authorize('update', $order);
 
+        $user = $request->user();
+        if (! $user instanceof User) {
+            throw new \Exception('Unauthenticated');
+        }
+        $status = is_string($request->order_status) ? $request->order_status : '';
         $updatedOrder = $this->transactionService->updateOrderStatus(
             $id,
-            $request->order_status,
-            $request->user()
+            $status,
+            $user
         );
 
         return $this->sendSuccess(
@@ -60,10 +70,14 @@ class OrderTransactionController extends BaseController
         $order = Order::findOrFail($id);
         $this->authorize('update', $order);
 
-        $reason = $request->get('reason');
+        $reason = is_string($request->get('reason')) ? $request->get('reason') : null;
+        $user = $request->user();
+        if (! $user instanceof User) {
+            throw new \Exception('Unauthenticated');
+        }
         $cancelledOrder = $this->transactionService->cancelOrder(
             $id,
-            $request->user(),
+            $user,
             $reason
         );
 
@@ -82,11 +96,18 @@ class OrderTransactionController extends BaseController
 
         $this->authorize('update', Order::class);
 
+        $paymentStatus = is_string($request->get('payment_status')) ? $request->get('payment_status') : '';
+        $paymentNote = is_string($request->get('payment_note')) ? $request->get('payment_note') : null;
+        $user = $request->user();
+        if (! $user instanceof User) {
+            throw new \Exception('Unauthenticated');
+        }
+
         $updatedOrder = $this->transactionService->updatePaymentStatus(
             $id,
-            $request->get('payment_status'),
-            $request->get('payment_note'),
-            $request->user()
+            $paymentStatus,
+            $paymentNote,
+            $user
         );
 
         return $this->sendSuccess(

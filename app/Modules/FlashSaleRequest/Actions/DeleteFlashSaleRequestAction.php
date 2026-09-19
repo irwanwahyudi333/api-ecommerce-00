@@ -6,6 +6,7 @@ namespace App\Modules\FlashSaleRequest\Actions;
 
 use App\Models\FlashSale;
 use App\Models\FlashSaleRequest;
+use App\Models\Product;
 use App\Modules\FlashSale\Events\FlashSaleProcessed;
 
 final class DeleteFlashSaleRequestAction
@@ -17,10 +18,11 @@ final class DeleteFlashSaleRequestAction
         $detachedProducts = [];
 
         if ($flashSale && $request->products->count()) {
+            /** @var Product $product */
             foreach ($request->products as $product) {
-                if ($flashSale->products->contains($product->id)) {
+                if ($flashSale->products->contains((int) $product->id)) {
                     $flashSale->products()->detach($product->id);
-                    $detachedProducts[] = $product->id;
+                    $attachedProducts[] = $product->id;
                 }
             }
             $flashSale->save();
@@ -30,7 +32,8 @@ final class DeleteFlashSaleRequestAction
             'requested_flash_sale' => $flashSale,
             'detached_products' => $detachedProducts,
         ];
-        event(new FlashSaleProcessed('delete_vendor_request', config('shop.default_language', 'id'), $eventData));
+        $language = config('shop.default_language', 'id');
+        event(new FlashSaleProcessed('delete_vendor_request', is_string($language) ? $language : 'id', $eventData));
 
         $request->forceDelete();
     }

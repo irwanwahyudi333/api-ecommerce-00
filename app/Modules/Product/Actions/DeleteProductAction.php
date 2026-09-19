@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Product\Actions;
 
 use App\Models\Product;
+use App\Models\Variation;
 use Illuminate\Support\Facades\DB;
 
 class DeleteProductAction
@@ -29,6 +30,7 @@ class DeleteProductAction
 
             // Hapus variation options (dan digital file masing-masing)
             $product->variation_options()->each(function ($variation) {
+                /** @var Variation $variation */
                 if ($variation->digital_file) {
                     $variation->digital_file()->delete();
                 }

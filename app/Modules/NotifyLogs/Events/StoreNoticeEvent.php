@@ -4,6 +4,7 @@ namespace App\Modules\NotifyLogs\Events;
 
 use App\Models\StoreNotice;
 use App\Models\User;
+use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -27,6 +28,9 @@ class StoreNoticeEvent implements ShouldQueue
         $this->actor = $actor;
     }
 
+    /**
+     * @return array<int, Channel>
+     */
     public function broadcastOn(): array
     {
         return [

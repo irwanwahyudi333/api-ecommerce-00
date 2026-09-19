@@ -33,6 +33,9 @@ class OrderQueryService
         'shop',
     ];
 
+    /**
+     * @return Builder<Order>
+     */
     public function buildQuery(Request $request, User $user): Builder
     {
         $query = Order::query();
@@ -52,6 +55,9 @@ class OrderQueryService
         return $query;
     }
 
+    /**
+     * @return LengthAwarePaginator<int, Order>
+     */
     public function getPaginatedOrders(Request $request, User $user, int $perPage = 15): LengthAwarePaginator
     {
         $query = $this->buildQuery($request, $user);
@@ -64,20 +70,34 @@ class OrderQueryService
         $query = $this->buildQuery($request, $user);
 
         if (is_numeric($identifier)) {
-            return $query->findOrFail((int) $identifier);
+            /** @var Order $order */
+            $order = $query->findOrFail((int) $identifier);
+
+            return $order;
         }
 
-        return $query->where('tracking_number', $identifier)->firstOrFail();
+        /** @var Order $order */
+        $order = $query->where('tracking_number', $identifier)->firstOrFail();
+
+        return $order;
     }
 
+    /**
+     * @return LengthAwarePaginator<int, Order>
+     */
     public function getOrdersByShop(int $shopId, Request $request, User $user): LengthAwarePaginator
     {
         $query = $this->buildQuery($request, $user);
         $query->where('shop_id', $shopId);
 
-        return $query->paginate($request->get('limit', 15));
+        $limit = $request->get('limit', 15);
+
+        return $query->paginate(is_numeric($limit) ? (int) $limit : 15);
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function getOrderStats(User $user, ?int $shopId = null): array
     {
         $query = Order::query();
@@ -104,14 +124,17 @@ class OrderQueryService
 
         return [
             'total' => (int) ($stats->total ?? 0),
-            'pending' => (int) ($stats->pending ?? 0),
-            'processing' => (int) ($stats->processing ?? 0),
-            'completed' => (int) ($stats->completed ?? 0),
-            'cancelled' => (int) ($stats->cancelled ?? 0),
-            'refunded' => (int) ($stats->refunded ?? 0),
+            'pending' => is_numeric($v = $stats->pending ?? 0) ? (int) $v : 0,
+            'processing' => is_numeric($v = $stats->processing ?? 0) ? (int) $v : 0,
+            'completed' => is_numeric($v = $stats->completed ?? 0) ? (int) $v : 0,
+            'cancelled' => is_numeric($v = $stats->cancelled ?? 0) ? (int) $v : 0,
+            'refunded' => is_numeric($v = $stats->refunded ?? 0) ? (int) $v : 0,
         ];
     }
 
+    /**
+     * @param  Builder<Order>  $query
+     */
     private function applyAuthorizationFilter(Builder $query, User $user): void
     {
         // Super admin can see all orders
@@ -139,6 +162,9 @@ class OrderQueryService
         $query->where('customer_id', $user->id)->whereNull('parent_id');
     }
 
+    /**
+     * @param  Builder<Order>  $query
+     */
     private function applyEagerLoading(Builder $query, User $user): void
     {
         $relations = $user->hasPermissionTo(Permission::SUPER_ADMIN->value)
@@ -148,10 +174,13 @@ class OrderQueryService
         $query->with($relations);
     }
 
+    /**
+     * @param  Builder<Order>  $query
+     */
     private function applyFilters(Builder $query, Request $request): void
     {
         // Search filter
-        if ($search = $request->get('search')) {
+        if ($search = is_scalar($request->get('search')) ? (string) $request->get('search') : null) {
             $search = trim($search);
             if (empty($search)) {
                 return; // Jangan lakukan pencarian jika string kosong
@@ -194,10 +223,10 @@ class OrderQueryService
         }
 
         // Date range filter
-        if ($startDate = $request->get('start_date')) {
+        if ($startDate = is_scalar($request->get('start_date')) ? (string) $request->get('start_date') : null) {
             $query->whereDate('created_at', '>=', $startDate);
         }
-        if ($endDate = $request->get('end_date')) {
+        if ($endDate = is_scalar($request->get('end_date')) ? (string) $request->get('end_date') : null) {
             $query->whereDate('created_at', '<=', $endDate);
         }
 
@@ -215,10 +244,13 @@ class OrderQueryService
         }
     }
 
+    /**
+     * @param  Builder<Order>  $query
+     */
     private function applySorting(Builder $query, Request $request): void
     {
-        $sortBy = $request->get('sort_by', 'created_at');
-        $sortOrder = $request->get('sort_order', 'desc');
+        $sortBy = is_scalar($request->get('sort_by')) ? (string) $request->get('sort_by') : 'created_at';
+        $sortOrder = is_scalar($request->get('sort_order')) ? strtolower((string) $request->get('sort_order')) : 'desc';
 
         $validSortColumns = [
             'created_at', 'updated_at', 'total',
@@ -226,7 +258,7 @@ class OrderQueryService
         ];
 
         if (in_array($sortBy, $validSortColumns, true)) {
-            $query->orderBy($sortBy, $sortOrder);
+            $query->orderBy($sortBy, $sortOrder === 'asc' ? 'asc' : 'desc');
         }
     }
 }

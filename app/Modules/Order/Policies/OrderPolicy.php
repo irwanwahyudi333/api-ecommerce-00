@@ -6,6 +6,7 @@ namespace App\Modules\Order\Policies;
 
 use App\Enums\Permission;
 use App\Models\Order;
+use App\Models\Shop;
 use App\Models\User;
 
 class OrderPolicy
@@ -24,11 +25,17 @@ class OrderPolicy
         }
 
         if ($user->hasPermissionTo(Permission::STORE_OWNER->value)) {
-            return $order->shop && $order->shop->owner_id === $user->id;
+            /** @var Shop|null $shop */
+            $shop = $order->shop;
+
+            return $shop && $shop->owner_id === $user->id;
         }
 
         if ($user->hasPermissionTo(Permission::STAFF->value)) {
-            return $order->shop && $order->shop->staffs->contains($user->id);
+            /** @var Shop|null $shop */
+            $shop = $order->shop;
+
+            return $shop && $shop->staffs()->where('id', $user->id)->exists();
         }
 
         return $order->customer_id === $user->id;
@@ -37,7 +44,7 @@ class OrderPolicy
     public function create(User $user): bool
     {
         // Setiap user yang login bisa membuat order (checkout)
-        return $user !== null;
+        return true;
     }
 
     public function update(User $user, Order $order): bool
@@ -47,11 +54,17 @@ class OrderPolicy
         }
 
         if ($user->hasPermissionTo(Permission::STORE_OWNER->value)) {
-            return $order->shop && $order->shop->owner_id === $user->id;
+            /** @var Shop|null $shop */
+            $shop = $order->shop;
+
+            return $shop && $shop->owner_id === $user->id;
         }
 
         if ($user->hasPermissionTo(Permission::STAFF->value)) {
-            return $order->shop && $order->shop->staffs->contains($user->id);
+            /** @var Shop|null $shop */
+            $shop = $order->shop;
+
+            return $shop && $shop->staffs()->where('id', $user->id)->exists();
         }
 
         return false;
@@ -106,7 +119,10 @@ class OrderPolicy
         }
 
         if ($user->hasPermissionTo(Permission::STORE_OWNER->value)) {
-            return $order->shop && $order->shop->owner_id === $user->id;
+            /** @var Shop|null $shop */
+            $shop = $order->shop;
+
+            return $shop && $shop->owner_id === $user->id;
         }
 
         return false;

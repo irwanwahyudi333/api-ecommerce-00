@@ -12,8 +12,12 @@ final class PaymentSuccess
 
     public Order $order; // Ubah dari string $orderTrackingNumber
 
+    /** @var array<string, mixed> */
     public array $paymentData;
 
+    /**
+     * @param  array<string, mixed>  $paymentData
+     */
     public function __construct(Order $order, array $paymentData) // Ubah parameter
     {
         $this->order = $order; // Ubah penugasan

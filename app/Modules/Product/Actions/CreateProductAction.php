@@ -2,18 +2,26 @@
 
 namespace App\Modules\Product\Actions;
 
+use App\Models\DigitalFile;
 use App\Models\Product;
+use App\Models\Variation;
 use App\Modules\Product\DTO\ProductData;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class CreateProductAction
 {
+    /**
+     * @param  object  $settings
+     */
     public function execute(ProductData $data, $settings): Product
     {
-        return DB::transaction(function () use ($data, $settings) {
+        /** @var Product $result */
+        $result = DB::transaction(function () use ($data, $settings) {
             $attributes = $this->prepareAttributes($data);
             $attributes['status'] = $this->determineStatus($data, $settings);
 
+            /** @var Product $product */
             $product = Product::create($attributes);
 
             if ($data->product_type === 'simple') {
@@ -26,7 +34,7 @@ class CreateProductAction
             // Amankan dari looping jika metas bukan array
             if (is_array($data->metas)) {
                 foreach ($data->metas as $meta) {
-                    if (isset($meta['key'])) {
+                    if (is_array($meta) && isset($meta['key']) && is_string($meta['key'])) {
                         $product->setMeta($meta['key'], $meta['value'] ?? null);
                     }
                 }
@@ -34,18 +42,28 @@ class CreateProductAction
 
             $this->syncRelations($product, $data);
 
-            if ($data->variation_options && isset($data->variation_options['upsert'])) {
+            if (is_array($data->variation_options) && isset($data->variation_options['upsert']) && is_array($data->variation_options['upsert'])) {
                 $this->handleVariationOptions($product, $data->variation_options['upsert']);
             }
 
-            if ($data->is_digital && $data->digital_file) {
-                $product->digital_file()->create($data->digital_file);
+            if ($data->is_digital && is_array($data->digital_file)) {
+                /** @var array<string, mixed> $digitalFileArr */
+                $digitalFileArr = $data->digital_file;
+                $product->digital_file()->create($digitalFileArr);
             }
 
-            return $product->fresh();
+            /** @var Product $freshProduct */
+            $freshProduct = $product->fresh();
+
+            return $freshProduct;
         });
+
+        return $result;
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     private function prepareAttributes(ProductData $data): array
     {
         // Untuk CREATE, kita mengambil semua properti dari DTO direct ke array
@@ -83,15 +101,23 @@ class CreateProductAction
         ];
 
         // Memanfaatkan helper fungsi generateUniqueSlug yang kamu buat
-        $nameForSlug = $data->slug ?: $data->name;
-        $attributes['slug'] = generateUniqueSlug(Product::class, $nameForSlug, $data->language);
+        $nameForSlug = $data->slug ?: (string) $data->name;
+        /** @var string $slug */
+        $slug = function_exists('generateUniqueSlug') ? generateUniqueSlug(Product::class, $nameForSlug, $data->language) : Str::slug($nameForSlug);
+        $attributes['slug'] = $slug;
 
         return $attributes;
     }
 
+    /**
+     * @param  object  $settings
+     */
     private function determineStatus(ProductData $data, $settings): string
     {
-        $needsReview = $settings->options['isProductReview'] ?? false;
+        $needsReview = false;
+        if (property_exists($settings, 'options') && is_array($settings->options)) {
+            $needsReview = $settings->options['isProductReview'] ?? false;
+        }
         if ($needsReview) {
             return $data->status === 'draft' ? 'draft' : 'under_review';
         }
@@ -127,12 +153,24 @@ class CreateProductAction
         }
     }
 
+    /**
+     * @param  array<array-key, mixed>  $variations
+     */
     private function handleVariationOptions(Product $product, array $variations): void
     {
         foreach ($variations as $variationData) {
-            $variation = $product->variation_options()->create($variationData);
-            if (($variationData['is_digital'] ?? false) && isset($variationData['digital_file'])) {
-                $digitalFile = $variation->digital_file()->create($variationData['digital_file']);
+            if (! is_array($variationData)) {
+                continue;
+            }
+            /** @var array<string, mixed> $variationArr */
+            $variationArr = $variationData;
+            /** @var Variation $variation */
+            $variation = $product->variation_options()->create($variationArr);
+            if (($variationArr['is_digital'] ?? false) && isset($variationArr['digital_file']) && is_array($variationArr['digital_file'])) {
+                /** @var array<string, mixed> $vDigitalFile */
+                $vDigitalFile = $variationArr['digital_file'];
+                /** @var DigitalFile $digitalFile */
+                $digitalFile = $variation->digital_file()->create($vDigitalFile);
                 $variation->update(['digital_file_tracker' => $digitalFile->id]);
             }
         }

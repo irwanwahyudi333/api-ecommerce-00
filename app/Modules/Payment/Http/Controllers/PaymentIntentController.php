@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Payment\Http\Controllers;
 
 use App\Http\Controllers\BaseController;
+use App\Models\User;
 use App\Modules\Payment\Actions\CreatePaymentIntentAction;
 use App\Modules\PaymentIntent\Http\Requests\CreatePaymentIntentRequest;
 use Illuminate\Http\JsonResponse;
@@ -51,9 +52,12 @@ final class PaymentIntentController extends BaseController
      */
     public function store(CreatePaymentIntentRequest $request): JsonResponse
     {
+        /** @var User $user */
+        $user = $request->user();
+
         $intent = $this->createPaymentIntentAction->execute(
             $request->validated(),
-            $request->user()
+            $user
         );
 
         return response()->json($intent, 201);

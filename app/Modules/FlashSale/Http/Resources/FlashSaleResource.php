@@ -14,6 +14,9 @@ use Illuminate\Http\Resources\Json\JsonResource;
  */
 class FlashSaleResource extends JsonResource
 {
+    /**
+     * @return array<string, mixed>
+     */
     public function toArray(Request $request): array
     {
         return [
@@ -21,8 +24,8 @@ class FlashSaleResource extends JsonResource
             'title' => $this->title,
             'slug' => $this->slug,
             'description' => $this->description,
-            'start_date' => $this->start_date?->toISOString(),
-            'end_date' => $this->end_date?->toISOString(),
+            'start_date' => $this->start_date->toISOString(),
+            'end_date' => $this->end_date->toISOString(),
             'sale_status' => $this->sale_status,
             'type' => $this->type,
             'rate' => $this->rate,

@@ -20,7 +20,9 @@ use Illuminate\Support\Facades\Cache;
  *     minimumOrderAmount?: float|int,
  *     freeShipping?: bool,
  *     freeShippingAmount?: float|int,
- *     shippingClass?: int|string
+ *     shippingClass?: int|string,
+ *     guestCheckout?: bool,
+ *     paymentGateway?: array<int, array{name?: string}>
  * }
  *
  * @property SettingsOptions $options

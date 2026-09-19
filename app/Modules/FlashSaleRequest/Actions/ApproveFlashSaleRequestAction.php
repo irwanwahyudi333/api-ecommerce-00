@@ -6,6 +6,7 @@ namespace App\Modules\FlashSaleRequest\Actions;
 
 use App\Models\FlashSale;
 use App\Models\FlashSaleRequest;
+use App\Models\Product;
 use App\Modules\FlashSale\Events\FlashSaleProcessed;
 
 final class ApproveFlashSaleRequestAction
@@ -18,8 +19,9 @@ final class ApproveFlashSaleRequestAction
         $flashSale = FlashSale::with('products')->find($request->flash_sale_id);
         $attachedProducts = [];
 
+        /** @var Product $product */
         foreach ($request->products as $product) {
-            if ($flashSale && ! $flashSale->products->contains($product->id)) {
+            if ($flashSale && ! $flashSale->products->contains((int) $product->id)) {
                 $flashSale->products()->attach($flashSale->id, ['product_id' => $product->id]);
                 $attachedProducts[] = $product->id;
             }
@@ -30,6 +32,7 @@ final class ApproveFlashSaleRequestAction
             'attached_product_ids' => $attachedProducts,
             'requested_flash_sale' => $flashSale,
         ];
-        event(new FlashSaleProcessed('append_attached_products', config('shop.default_language', 'id'), $eventData));
+        $language = config('shop.default_language', 'id');
+        event(new FlashSaleProcessed('append_attached_products', is_string($language) ? $language : 'id', $eventData));
     }
 }

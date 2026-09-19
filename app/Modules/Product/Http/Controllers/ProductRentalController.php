@@ -46,12 +46,12 @@ class ProductRentalController extends BaseController
             'product_id' => 'required|exists:products,id',
         ]);
 
-        $productId = $request->get('product_id');
-        $from = $request->get('from');
-        $to = $request->get('to');
+        $productId = is_numeric($request->get('product_id')) ? (int) $request->get('product_id') : 0;
+        $from = is_string($request->get('from')) ? $request->get('from') : '';
+        $to = is_string($request->get('to')) ? $request->get('to') : '';
 
         $unavailable = $this->rentalService->getUnavailableProductIds($from, $to);
-        $isAvailable = ! in_array((int) $productId, $unavailable);
+        $isAvailable = ! in_array($productId, $unavailable);
 
         return $this->sendSuccess([
             'is_available' => $isAvailable,

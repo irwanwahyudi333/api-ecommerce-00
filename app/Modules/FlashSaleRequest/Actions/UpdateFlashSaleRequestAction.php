@@ -17,6 +17,9 @@ class UpdateFlashSaleRequestAction
             $request->products()->sync($data->requested_product_ids);
         }
 
-        return $request->fresh();
+        /** @var FlashSaleRequest $freshRequest */
+        $freshRequest = $request->fresh();
+
+        return $freshRequest;
     }
 }

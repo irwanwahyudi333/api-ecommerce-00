@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Modules\Payment\Services;
 
+use App\Models\PaymentGateway;
 use App\Models\PaymentMethod;
+use App\Models\User;
 use App\Modules\PaymentMethod\DTO\PaymentMethodData;
 use App\Modules\PaymentMethod\Events\PaymentMethodCreated;
 use Illuminate\Contracts\Auth\Authenticatable;
@@ -15,12 +17,17 @@ final class PaymentMethodPersistService
 {
     public function save(object $paymentMethodData, Authenticatable $user, PaymentMethodData $data): PaymentMethod
     {
+        /** @var User $user */
+        $paymentGateway = PaymentGateway::firstOrCreate([
+            'user_id' => $user->id,
+            'gateway_name' => $data->payment_gateway,
+        ]);
+
         $method = PaymentMethod::create([
-            'payment_gateway_id' => $data->payment_gateway_id,
+            'payment_gateway_id' => $paymentGateway->id,
             'method_key' => $data->method_key,
             'method_type' => $data->method_type,
             'default_payment' => $data->default_payment,
-            'fingerprint' => $data->fingerprint,
             'brand' => $data->brand,
             'last4' => $data->last4,
             'exp_month' => $data->exp_month,
@@ -31,7 +38,6 @@ final class PaymentMethodPersistService
             'ewallet_type' => $data->ewallet_type,
             'account_name' => $data->account_name,
             'account_number' => $data->account_number,
-            'account_last4' => $data->account_last4,
             'metadata' => $data->metadata,
             'provider_data' => json_encode($paymentMethodData),
         ]);
@@ -45,21 +51,31 @@ final class PaymentMethodPersistService
         return $method;
     }
 
+    /**
+     * @param  array<string, mixed>  $attributes
+     */
     public function update(PaymentMethod $method, array $attributes): PaymentMethod
     {
         $method->update($attributes);
 
         // Clear cache for this user
-        if ($method->paymentGateway && $method->paymentGateway->user_id) {
-            Cache::forget("payment_methods.user.{$method->paymentGateway->user_id}");
+        /** @var PaymentGateway|null $paymentGateway */
+        $paymentGateway = $method->paymentGateway;
+        if ($paymentGateway && $paymentGateway->user_id) {
+            Cache::forget("payment_methods.user.{$paymentGateway->user_id}");
         }
 
-        return $method->fresh();
+        /** @var PaymentMethod $freshMethod */
+        $freshMethod = $method->fresh();
+
+        return $freshMethod;
     }
 
     public function delete(PaymentMethod $method): void
     {
-        $userId = $method->paymentGateway?->user_id;
+        /** @var PaymentGateway|null $paymentGateway */
+        $paymentGateway = $method->paymentGateway;
+        $userId = $paymentGateway?->user_id;
 
         $method->delete();
 
@@ -71,6 +87,7 @@ final class PaymentMethodPersistService
 
     private function clearUserCache(Authenticatable $user): void
     {
+        /** @var User $user */
         Cache::forget("payment_methods.user.{$user->id}");
     }
 }

@@ -10,11 +10,17 @@ interface PaymentProviderInterface
 {
     /**
      * Create a payment transaction.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
      */
     public function createPayment(array $data): array;
 
     /**
      * Create a customer in the gateway.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
      */
     public function createCustomer(array $data): array;
 
@@ -35,6 +41,9 @@ interface PaymentProviderInterface
 
     /**
      * Initialize a payment method for adding.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>|null
      */
     public function initializePaymentMethod(array $data): ?array;
 
@@ -50,11 +59,15 @@ interface PaymentProviderInterface
 
     /**
      * Get supported payment method types.
+     *
+     * @return array<int, string>
      */
     public function getSupportedPaymentMethods(): array;
 
     /**
      * Verify a payment transaction.
+     *
+     * @return array<string, mixed>
      */
     public function verifyPayment(string $transactionId): array;
 }

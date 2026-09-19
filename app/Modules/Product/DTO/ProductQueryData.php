@@ -28,20 +28,20 @@ class ProductQueryData
     public static function fromRequest(Request $request): self
     {
         return new self(
-            search: $request->get('search'),
-            status: $request->get('status'),
-            categoryId: $request->filled('category_id') ? (int) $request->get('category_id') : null,
-            typeId: $request->filled('type_id') ? (int) $request->get('type_id') : null,
-            shopId: $request->filled('shop_id') ? (int) $request->get('shop_id') : null,
-            minPrice: $request->filled('min_price') ? (float) $request->get('min_price') : null,
-            maxPrice: $request->filled('max_price') ? (float) $request->get('max_price') : null,
+            search: is_string($request->get('search')) ? $request->get('search') : null,
+            status: is_string($request->get('status')) ? $request->get('status') : null,
+            categoryId: $request->filled('category_id') && is_numeric($request->get('category_id')) ? (int) $request->get('category_id') : null,
+            typeId: $request->filled('type_id') && is_numeric($request->get('type_id')) ? (int) $request->get('type_id') : null,
+            shopId: $request->filled('shop_id') && is_numeric($request->get('shop_id')) ? (int) $request->get('shop_id') : null,
+            minPrice: $request->filled('min_price') && is_numeric($request->get('min_price')) ? (float) $request->get('min_price') : null,
+            maxPrice: $request->filled('max_price') && is_numeric($request->get('max_price')) ? (float) $request->get('max_price') : null,
             isRental: $request->filled('is_rental') ? filter_var($request->get('is_rental'), FILTER_VALIDATE_BOOLEAN) : null,
             isDigital: $request->filled('is_digital') ? filter_var($request->get('is_digital'), FILTER_VALIDATE_BOOLEAN) : null,
-            sortBy: $request->get('sort_by', 'created_at'),
-            sortOrder: $request->get('sort_order', 'desc'),
-            limit: (int) $request->get('limit', 15),
-            page: (int) $request->get('page', 1),
-            language: $request->get('language', 'id')
+            sortBy: is_string($request->get('sort_by')) ? $request->get('sort_by') : 'created_at',
+            sortOrder: is_string($request->get('sort_order')) ? $request->get('sort_order') : 'desc',
+            limit: is_numeric($request->get('limit')) ? (int) $request->get('limit') : 15,
+            page: is_numeric($request->get('page')) ? (int) $request->get('page') : 1,
+            language: is_string($request->get('language')) ? $request->get('language') : 'id'
         );
     }
 
@@ -60,6 +60,9 @@ class ProductQueryData
         ]));
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function toArray(): array
     {
         return [

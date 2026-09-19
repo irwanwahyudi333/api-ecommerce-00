@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Modules\FlashSaleRequest\Http\Resources;
 
+use App\Models\FlashSale;
 use App\Models\FlashSaleRequest;
 use App\Modules\Product\Http\Resources\ProductResource;
 use Illuminate\Http\Request;
@@ -14,6 +15,9 @@ use Illuminate\Http\Resources\Json\JsonResource;
  */
 class FlashSaleRequestResource extends JsonResource
 {
+    /**
+     * @return array<string, mixed>
+     */
     public function toArray(Request $request): array
     {
         return [
@@ -27,9 +31,12 @@ class FlashSaleRequestResource extends JsonResource
             'updated_at' => $this->updated_at?->toISOString(),
             'products' => ProductResource::collection($this->whenLoaded('products')),
             'flash_sale' => $this->whenLoaded('flashSale', function () {
+                /** @var FlashSale $flashSale */
+                $flashSale = $this->flashSale;
+
                 return [
-                    'id' => $this->flashSale->id,
-                    'title' => $this->flashSale->title,
+                    'id' => $flashSale->id,
+                    'title' => $flashSale->title,
                 ];
             }),
         ];

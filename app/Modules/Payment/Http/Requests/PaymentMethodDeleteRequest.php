@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Payment\Http\Requests;
 
 use App\Models\PaymentMethod;
+use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
 
 class PaymentMethodDeleteRequest extends FormRequest
@@ -17,9 +18,15 @@ class PaymentMethodDeleteRequest extends FormRequest
             return false;
         }
 
-        return $this->user()->can('delete', $method);
+        /** @var User $user */
+        $user = $this->user();
+
+        return $user->can('delete', $method);
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function rules(): array
     {
         return [];
@@ -36,7 +43,9 @@ class PaymentMethodDeleteRequest extends FormRequest
         return PaymentMethod::query()
             ->where('id', (int) $id)
             ->whereHas('paymentGateway', function ($query) {
-                $query->where('user_id', $this->user()->id);
+                /** @var User $user */
+                $user = $this->user();
+                $query->where('user_id', $user->id);
             })
             ->first();
     }

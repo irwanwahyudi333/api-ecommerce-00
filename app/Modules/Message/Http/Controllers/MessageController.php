@@ -7,11 +7,14 @@ namespace App\Modules\Message\Http\Controllers;
 use App\Http\Controllers\BaseController;
 use App\Models\Conversation;
 use App\Models\Message;
+use App\Models\User;
 use App\Modules\Message\DTO\MessageData;
 use App\Modules\Message\Http\Requests\MessageCreateRequest;
 use App\Modules\Message\Http\Resources\MessageResource;
 use App\Modules\Message\Services\MessageService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class MessageController extends BaseController
 {
@@ -20,13 +23,16 @@ class MessageController extends BaseController
     /**
      * GET /conversations/{conversation_id}/messages
      */
-    public function index(Request $request, int $conversation_id)
+    public function index(Request $request, int $conversation_id): AnonymousResourceCollection
     {
+        /** @var User $user */
         $user = $request->user();
         $conversation = $this->messageService->getConversationForUser($conversation_id, $user);
         $this->authorize('viewAny', [Message::class, $conversation]);
 
-        $limit = (int) ($request->limit ?? 15);
+        $limitInput = $request->input('limit', 15);
+        assert(is_numeric($limitInput));
+        $limit = (int) $limitInput;
         $messages = $this->messageService->getMessages($conversation, $limit)->paginate($limit);
 
         return MessageResource::collection($messages);
@@ -35,9 +41,11 @@ class MessageController extends BaseController
     /**
      * POST /conversations/{conversation_id}/messages
      */
-    public function store(MessageCreateRequest $request, int $conversation_id)
+    public function store(MessageCreateRequest $request, int $conversation_id): MessageResource
     {
+        /** @var User $user */
         $user = $request->user();
+        /** @var Conversation $conversation */
         $conversation = Conversation::findOrFail($conversation_id);
         $this->authorize('create', [Message::class, $conversation]);
 
@@ -50,14 +58,18 @@ class MessageController extends BaseController
     /**
      * PUT /conversations/{conversation_id}/seen
      */
-    public function seenMessage(Request $request)
+    public function seenMessage(Request $request): JsonResponse
     {
         $request->validate(['conversation_id' => 'required|exists:conversations,id']);
 
-        $conversation = Conversation::findOrFail($request->conversation_id);
+        $conversationId = $request->input('conversation_id');
+        /** @var Conversation $conversation */
+        $conversation = Conversation::findOrFail($conversationId);
         $this->authorize('markAsSeen', [Message::class, $conversation]);
 
-        $updated = $this->messageService->markAsSeen($conversation, $request->user());
+        /** @var User $user */
+        $user = $request->user();
+        $updated = $this->messageService->markAsSeen($conversation, $user);
 
         return response()->json(['updated' => $updated]);
     }
