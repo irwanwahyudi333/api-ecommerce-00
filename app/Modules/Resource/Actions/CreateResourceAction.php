@@ -15,7 +15,7 @@ final class CreateResourceAction
     {
         $attributes = array_filter([
             'name' => $data->name,
-            'slug' => $data->slug ?? Str::slug($data->name),
+            'slug' => $data->slug ?? Str::slug((string) $data->name),
             'type' => $data->type,
             'price' => $data->price,
             'image' => $data->image,

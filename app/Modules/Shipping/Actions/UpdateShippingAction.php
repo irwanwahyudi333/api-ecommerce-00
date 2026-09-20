@@ -25,6 +25,6 @@ final class UpdateShippingAction
 
         Cache::forget(self::CACHE_KEY_ALL); // Invalidate cache
 
-        return $shipping->fresh();
+        return $shipping->refresh();
     }
 }

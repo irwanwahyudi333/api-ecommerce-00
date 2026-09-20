@@ -3,6 +3,7 @@
 namespace App\Modules\Resource\Http\Requests;
 
 use App\Enums\ResourceType;
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -13,6 +14,9 @@ class ResourceCreateRequest extends FormRequest
         return true;
     }
 
+    /**
+     * @return array<string, ValidationRule|array<mixed>|string>
+     */
     public function rules(): array
     {
         return [

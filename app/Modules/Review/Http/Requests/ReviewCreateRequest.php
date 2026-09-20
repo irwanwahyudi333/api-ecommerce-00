@@ -12,12 +12,15 @@ class ReviewCreateRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        /** @var User $user */
+        /** @var User|null $user */
         $user = $this->user();
 
         return $user && $user->can('create', Review::class);
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function rules(): array
     {
         return [

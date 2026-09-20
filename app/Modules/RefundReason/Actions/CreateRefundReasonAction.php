@@ -13,9 +13,14 @@ final class CreateRefundReasonAction
 {
     public function execute(RefundReasonData $data): RefundReason
     {
+        $slug = $data->slug;
+        if ($slug === null && $data->name !== null && $data->name !== '') {
+            $slug = Str::slug($data->name);
+        }
+
         $attributes = array_filter([
             'name' => $data->name,
-            'slug' => $data->slug ?? Str::slug($data->name),
+            'slug' => $slug,
             'language' => $data->language,
         ], fn ($v) => ! is_null($v));
 

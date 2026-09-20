@@ -12,7 +12,7 @@ class ReviewUpdateRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        /** @var User $user */
+        /** @var User|null $user */
         $user = $this->user();
         /** @var Review $review */
         $review = $this->route('review');
@@ -20,6 +20,9 @@ class ReviewUpdateRequest extends FormRequest
         return $user && $user->can('update', $review);
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function rules(): array
     {
         return [

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Modules\Refund\Events;
 
 use App\Models\Refund;
@@ -10,10 +12,5 @@ class RefundUpdate
 {
     use Dispatchable, SerializesModels;
 
-    public Refund $refund;
-
-    public function __construct(Refund $refund)
-    {
-        $this->refund = $refund;
-    }
+    public function __construct(public Refund $refund) {}
 }

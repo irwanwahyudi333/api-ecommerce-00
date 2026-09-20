@@ -15,7 +15,7 @@ final class UpdateResourceAction
     {
         $attributes = array_filter([
             'name' => $data->name,
-            'slug' => ($data->slug && $data->slug !== $resource->slug) ? $data->slug : ($data->name ? Str::slug($data->name) : null),
+            'slug' => ($data->slug && $data->slug !== $resource->slug) ? $data->slug : ($data->name ? Str::slug((string) $data->name) : null),
             'type' => $data->type,
             'price' => $data->price,
             'image' => $data->image,
@@ -29,6 +29,6 @@ final class UpdateResourceAction
 
         Cache::forget("resources_{$resource->language}_*"); // Invalidate cache
 
-        return $resource->fresh();
+        return $resource->refresh();
     }
 }

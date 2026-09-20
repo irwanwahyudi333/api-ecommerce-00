@@ -4,11 +4,14 @@ namespace App\Modules\Resource\Services;
 
 use App\Models\Resource;
 use App\Modules\Resource\DTO\ResourceData;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Str;
 
 class ResourceService
 {
+    /**
+     * @return LengthAwarePaginator<int, resource>
+     */
     public function getResources(string $language, int $perPage = 15): LengthAwarePaginator
     {
         return Resource::where('language', $language)->paginate($perPage);
@@ -27,7 +30,7 @@ class ResourceService
     {
         $attributes = array_filter([
             'name' => $data->name,
-            'slug' => $data->slug ?? Str::slug($data->name),
+            'slug' => $data->slug ?? Str::slug((string) $data->name),
             'type' => $data->type,
             'price' => $data->price,
             'image' => $data->image,
@@ -44,7 +47,7 @@ class ResourceService
     {
         $attributes = array_filter([
             'name' => $data->name,
-            'slug' => ($data->slug && $data->slug !== $resource->slug) ? $data->slug : ($data->name ? Str::slug($data->name) : null),
+            'slug' => ($data->slug && $data->slug !== $resource->slug) ? $data->slug : ($data->name ? Str::slug((string) $data->name) : null),
             'type' => $data->type,
             'price' => $data->price,
             'image' => $data->image,
@@ -56,7 +59,7 @@ class ResourceService
 
         $resource->update($attributes);
 
-        return $resource->fresh();
+        return $resource->refresh();
     }
 
     public function delete(Resource $resource): void

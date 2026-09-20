@@ -6,6 +6,7 @@ namespace App\Modules\Refund\Http\Controllers;
 
 use App\Http\Controllers\BaseController;
 use App\Models\Refund;
+use App\Models\User;
 use App\Modules\Refund\DTO\RefundData;
 use App\Modules\Refund\Http\Requests\RefundRequest;
 use App\Modules\Refund\Http\Resources\GetSingleRefundResource;
@@ -22,8 +23,15 @@ class RefundController extends BaseController
     {
         $this->authorize('viewAny', Refund::class);
 
-        $limit = (int) $request->get('limit', 15);
-        $refunds = $this->refundService->getRefundsQuery($request, $request->user())->paginate($limit);
+        /** @var User|null $user */
+        $user = $request->user();
+        if (! $user) {
+            abort(401);
+        }
+
+        $rawLimit = $request->get('limit', 15);
+        $limit = is_numeric($rawLimit) ? (int) $rawLimit : 15;
+        $refunds = $this->refundService->getRefundsQuery($request, $user)->paginate($limit);
 
         return $this->sendPaginated(
             $refunds,
@@ -36,8 +44,14 @@ class RefundController extends BaseController
     {
         $this->authorize('create', Refund::class);
 
-        $data = RefundData::fromRequest($request);
-        $refund = $this->refundService->storeRefund($data, $request->user());
+        /** @var User|null $user */
+        $user = $request->user();
+        if (! $user) {
+            abort(401);
+        }
+
+        $data = RefundData::fromRequest($request, (int) $user->id);
+        $refund = $this->refundService->storeRefund($data, $user);
 
         return $this->sendSuccess(
             new RefundResource($refund),
@@ -63,8 +77,14 @@ class RefundController extends BaseController
         $refund = Refund::findOrFail($id);
         $this->authorize('update', $refund);
 
-        $data = RefundData::fromRequest($request);
-        $updated = $this->refundService->updateRefund($refund, $data, $request->user());
+        /** @var User|null $user */
+        $user = $request->user();
+        if (! $user) {
+            abort(401);
+        }
+
+        $data = RefundData::fromRequest($request, (int) $user->id);
+        $updated = $this->refundService->updateRefund($refund, $data, $user);
 
         return $this->sendSuccess(
             new RefundResource($updated),
@@ -77,7 +97,13 @@ class RefundController extends BaseController
         $refund = Refund::findOrFail($id);
         $this->authorize('delete', $refund);
 
-        $this->refundService->deleteRefund($refund, $request->user());
+        /** @var User|null $user */
+        $user = $request->user();
+        if (! $user) {
+            abort(401);
+        }
+
+        $this->refundService->deleteRefund($refund, $user);
 
         return $this->sendSuccess(
             null,

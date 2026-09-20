@@ -22,7 +22,8 @@ use Illuminate\Support\Facades\Cache;
  *     freeShippingAmount?: float|int,
  *     shippingClass?: int|string,
  *     guestCheckout?: bool,
- *     paymentGateway?: array<int, array{name?: string}>
+ *     paymentGateway?: array<int, array{name?: string}>,
+ *     maximumQuestionLimit?: int
  * }
  *
  * @property SettingsOptions $options

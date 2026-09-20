@@ -1,27 +1,37 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Modules\Question\Http\Resources;
 
+use App\Models\Question;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/**
+ * @mixin Question
+ */
 class QuestionResource extends JsonResource
 {
-    public function toArray($request)
+    /**
+     * @return array<string, mixed>
+     */
+    public function toArray(Request $request): array
     {
         return [
-            'id' => $this->resource->id,
-            'product_id' => $this->resource->product_id,
-            'shop_id' => $this->resource->shop_id,
-            'user_id' => $this->resource->user_id,
-            'question' => $this->resource->question,
-            'answer' => $this->resource->answer,
-            'positive_feedbacks_count' => $this->resource->positive_feedbacks_count,
-            'negative_feedbacks_count' => $this->resource->negative_feedbacks_count,
-            'my_feedback' => $this->resource->my_feedback,
-            'abusive_reports_count' => $this->resource->abusive_reports_count,
-            'created_at' => $this->resource->created_at,
-            'updated_at' => $this->resource->updated_at,
-            'deleted_at' => $this->resource->deleted_at,
+            'id' => $this->id,
+            'product_id' => $this->product_id,
+            'shop_id' => $this->shop_id,
+            'user_id' => $this->user_id,
+            'question' => $this->question,
+            'answer' => $this->answer,
+            'positive_feedbacks_count' => $this->positive_feedbacks_count,
+            'negative_feedbacks_count' => $this->negative_feedbacks_count,
+            'my_feedback' => $this->my_feedback,
+            'abusive_reports_count' => $this->abusive_reports_count,
+            'created_at' => $this->created_at,
+            'updated_at' => $this->updated_at,
+            'deleted_at' => $this->deleted_at,
             'product' => $this->whenLoaded('product'),
         ];
     }

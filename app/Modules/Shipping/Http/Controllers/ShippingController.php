@@ -12,6 +12,7 @@ use App\Modules\Shipping\Http\Requests\ShippingCreateRequest;
 use App\Modules\Shipping\Http\Requests\ShippingUpdateRequest;
 use App\Modules\Shipping\Http\Resources\ShippingResource;
 use App\Modules\Shipping\Services\ShippingQueryService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class ShippingController extends BaseController
@@ -23,7 +24,7 @@ class ShippingController extends BaseController
         private readonly DeleteShippingAction $deleteAction,
     ) {}
 
-    public function index()
+    public function index(): JsonResponse
     {
         $this->authorize('viewAny', Shipping::class);
 
@@ -32,7 +33,7 @@ class ShippingController extends BaseController
         return $this->sendSuccess(ShippingResource::collection($shippings), 'Shippings retrieved');
     }
 
-    public function store(ShippingCreateRequest $request)
+    public function store(ShippingCreateRequest $request): JsonResponse
     {
         $this->authorize('create', Shipping::class);
 
@@ -42,17 +43,17 @@ class ShippingController extends BaseController
         return $this->sendSuccess(new ShippingResource($shipping), 'Shipping created', 201);
     }
 
-    public function show($id)
+    public function show(int $id): JsonResponse
     {
-        $shipping = $this->queryService->findOrFail((int) $id);
+        $shipping = $this->queryService->findOrFail($id);
         $this->authorize('view', $shipping);
 
         return $this->sendSuccess(new ShippingResource($shipping), 'Shipping detail');
     }
 
-    public function update(ShippingUpdateRequest $request, $id)
+    public function update(ShippingUpdateRequest $request, int $id): JsonResponse
     {
-        $shipping = $this->queryService->findOrFail((int) $id);
+        $shipping = $this->queryService->findOrFail($id);
         $this->authorize('update', $shipping);
 
         $data = ShippingData::fromRequest($request->validated());
@@ -61,9 +62,9 @@ class ShippingController extends BaseController
         return $this->sendSuccess(new ShippingResource($updated), 'Shipping updated');
     }
 
-    public function destroy(Request $request, $id)
+    public function destroy(Request $request, int $id): JsonResponse
     {
-        $shipping = $this->queryService->findOrFail((int) $id);
+        $shipping = $this->queryService->findOrFail($id);
         $this->authorize('delete', $shipping);
 
         $this->deleteAction->execute($shipping);

@@ -23,6 +23,6 @@ final class UpdateRefundReasonAction
 
         Cache::forget("refund_reasons_{$reason->language}_*"); // Invalidate cache
 
-        return $reason->fresh();
+        return $reason->fresh() ?? $reason;
     }
 }

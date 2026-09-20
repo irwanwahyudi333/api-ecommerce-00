@@ -6,6 +6,7 @@ namespace App\Modules\Refund\Policies;
 
 use App\Enums\Permission;
 use App\Models\Refund;
+use App\Models\Shop;
 use App\Models\User;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
@@ -27,7 +28,9 @@ class RefundPolicy
         }
 
         if ($user->hasPermissionTo(Permission::STORE_OWNER->value)) {
-            return $refund->shop_id === $user->shops()->first()?->id;
+            $shop = $user->shops()->first();
+
+            return $shop instanceof Shop && $refund->shop_id === $shop->id;
         }
 
         if ($user->hasPermissionTo(Permission::STAFF->value)) {
@@ -39,7 +42,7 @@ class RefundPolicy
 
     public function create(User $user): bool
     {
-        return $user !== null;
+        return true;
     }
 
     public function update(User $user, Refund $refund): bool
@@ -49,7 +52,9 @@ class RefundPolicy
         }
 
         if ($user->hasPermissionTo(Permission::STORE_OWNER->value)) {
-            return $refund->shop_id === $user->shops()->first()?->id;
+            $shop = $user->shops()->first();
+
+            return $shop instanceof Shop && $refund->shop_id === $shop->id;
         }
 
         if ($user->hasPermissionTo(Permission::STAFF->value)) {

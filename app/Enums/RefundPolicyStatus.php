@@ -9,6 +9,8 @@ enum RefundPolicyStatus: string
 
     /**
      * Get all values for database enum
+     *
+     * @return list<string>
      */
     public static function getValues(): array
     {

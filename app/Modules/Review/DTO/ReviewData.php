@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace App\Modules\Review\DTO;
 
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class ReviewData
 {
+    /**
+     * @param  array<string>|null  $photos
+     */
     public function __construct(
         public readonly int $orderId,
         public readonly int $productId,
@@ -21,18 +25,30 @@ class ReviewData
 
     public static function fromRequest(Request $request): self
     {
+        /** @var User $user */
+        $user = $request->user();
+
+        /** @var string|null $comment */
+        $comment = $request->input('comment');
+
+        /** @var array<string>|null $photos */
+        $photos = $request->input('photos');
+
         return new self(
-            orderId: (int) $request->input('order_id'),
-            productId: (int) $request->input('product_id'),
-            variationOptionId: $request->input('variation_option_id') ? (int) $request->input('variation_option_id') : null,
-            userId: (int) $request->user()->id,
-            shopId: (int) $request->input('shop_id'),
-            comment: $request->input('comment'),
-            rating: (int) $request->input('rating'),
-            photos: $request->input('photos'),
+            orderId: $request->integer('order_id'),
+            productId: $request->integer('product_id'),
+            variationOptionId: $request->filled('variation_option_id') ? $request->integer('variation_option_id') : null,
+            userId: (int) $user->id,
+            shopId: $request->integer('shop_id'),
+            comment: $comment,
+            rating: $request->integer('rating'),
+            photos: $photos,
         );
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function toArray(): array
     {
         return [

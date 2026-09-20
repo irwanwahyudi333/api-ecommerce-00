@@ -4,27 +4,36 @@ declare(strict_types=1);
 
 namespace App\Modules\Refund\Http\Resources;
 
+use App\Models\RefundPolicy;
 use App\Modules\Shop\Http\Resources\ShopResource;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/**
+ * @mixin RefundPolicy
+ */
 class RefundPolicyResource extends JsonResource
 {
+    /**
+     * @param  Request  $request
+     * @return array<string, mixed>
+     */
     public function toArray($request): array
     {
         return [
-            'id' => $this->resource->id,
-            'title' => $this->resource->title,
-            'slug' => $this->resource->slug,
-            'target' => $this->resource->target,
-            'status' => $this->resource->status,
-            'description' => $this->resource->description,
-            'language' => $this->resource->language,
-            'translated_languages' => $this->resource->translated_languages,
-            'shop' => $this->whenLoaded('shop', fn () => new ShopResource($this->resource->shop)),
-            'refunds' => $this->whenLoaded('refunds', fn () => RefundResource::collection($this->resource->refunds)),
-            'created_at' => $this->resource->created_at,
-            'updated_at' => $this->resource->updated_at,
-            'deleted_at' => $this->resource->deleted_at,
+            'id' => $this->id,
+            'title' => $this->title,
+            'slug' => $this->slug,
+            'target' => $this->target,
+            'status' => $this->status,
+            'description' => $this->description,
+            'language' => $this->language,
+            'translated_languages' => $this->translated_languages,
+            'shop' => $this->whenLoaded('shop', fn () => new ShopResource($this->shop)),
+            'refunds' => $this->whenLoaded('refunds', fn () => RefundResource::collection($this->refunds)),
+            'created_at' => $this->created_at,
+            'updated_at' => $this->updated_at,
+            'deleted_at' => $this->deleted_at,
         ];
     }
 }

@@ -21,17 +21,28 @@ class RefundPolicyData
 
     public static function fromRequest(Request $request): self
     {
+        $title = is_string($request->input('title')) ? $request->input('title') : '';
+        $target = is_string($request->input('target')) ? $request->input('target') : '';
+        $status = is_string($request->input('status')) ? $request->input('status') : '';
+        $description = is_string($request->input('description')) ? $request->input('description') : null;
+        $shopId = is_numeric($request->input('shop_id')) ? (int) $request->input('shop_id') : null;
+        $defaultLang = config('shop.default_language', 'id');
+        $language = is_string($request->input('language')) ? $request->input('language') : (is_string($defaultLang) ? $defaultLang : 'id');
+
         return new self(
-            title: $request->input('title'),
-            slug: Str::slug($request->input('title')),
-            target: $request->input('target'),
-            status: $request->input('status'),
-            description: $request->input('description'),
-            shopId: $request->input('shop_id'),
-            language: $request->input('language', config('shop.default_language', 'id')),
+            title: $title,
+            slug: Str::slug($title),
+            target: $target,
+            status: $status,
+            description: $description,
+            shopId: $shopId,
+            language: $language,
         );
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function toArray(): array
     {
         return [

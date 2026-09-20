@@ -1,27 +1,38 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Modules\Refund\Http\Resources;
 
+use App\Models\Refund;
 use App\Modules\Order\Http\Resources\OrderResource;
 use App\Modules\RefundReason\Http\Resources\RefundReasonResource;
 use App\Modules\User\Http\Resources\UserResource;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/**
+ * @mixin Refund
+ */
 class GetSingleRefundResource extends JsonResource
 {
-    public function toArray($request)
+    /**
+     * @param  Request  $request
+     * @return array<string, mixed>
+     */
+    public function toArray($request): array
     {
         return [
-            'id' => $this->resource->id,
-            'title' => $this->resource->title,
-            'refund_reason' => RefundReasonResource::make($this->whenLoaded('refundReason')), // Use RefundReasonResource
-            'description' => $this->resource->description,
-            'amount' => $this->resource->amount,
-            'status' => $this->resource->status,
-            'images' => $this->resource->images,
-            'customer' => UserResource::make($this->whenLoaded('customer')), // Use UserResource
-            'order' => OrderResource::make($this->whenLoaded('order')), // Use OrderResource
-            'created_at' => $this->resource->created_at,
+            'id' => $this->id,
+            'title' => $this->title,
+            'refund_reason' => RefundReasonResource::make($this->whenLoaded('refundReason')),
+            'description' => $this->description,
+            'amount' => $this->amount,
+            'status' => $this->status,
+            'images' => $this->images,
+            'customer' => UserResource::make($this->whenLoaded('customer')),
+            'order' => OrderResource::make($this->whenLoaded('order')),
+            'created_at' => $this->created_at,
         ];
     }
 }

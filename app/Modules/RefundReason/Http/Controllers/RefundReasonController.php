@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Modules\RefundReason\Http\Controllers;
 
 use App\Http\Controllers\BaseController;
@@ -12,6 +14,7 @@ use App\Modules\RefundReason\Http\Requests\RefundReasonCreateRequest;
 use App\Modules\RefundReason\Http\Requests\RefundReasonUpdateRequest;
 use App\Modules\RefundReason\Http\Resources\RefundReasonResource;
 use App\Modules\RefundReason\Services\RefundReasonQueryService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class RefundReasonController extends BaseController
@@ -23,10 +26,15 @@ class RefundReasonController extends BaseController
         private readonly DeleteRefundReasonAction $deleteAction,
     ) {}
 
-    public function index(Request $request)
+    public function index(Request $request): JsonResponse
     {
-        $language = $request->language ?? config('shop.default_language', 'id');
-        $limit = $request->limit ?? 15;
+        $rawLanguage = $request->input('language');
+        $defaultLang = config('shop.default_language', 'id');
+        $language = is_string($rawLanguage) ? $rawLanguage : (is_string($defaultLang) ? $defaultLang : 'id');
+
+        $rawLimit = $request->input('limit', 15);
+        $limit = is_numeric($rawLimit) ? (int) $rawLimit : 15;
+
         $reasons = $this->queryService->getRefundReasons($language, $limit);
 
         return $this->sendPaginated(
@@ -36,7 +44,7 @@ class RefundReasonController extends BaseController
         );
     }
 
-    public function store(RefundReasonCreateRequest $request)
+    public function store(RefundReasonCreateRequest $request): JsonResponse
     {
         $this->authorize('create', RefundReason::class);
 
@@ -46,15 +54,18 @@ class RefundReasonController extends BaseController
         return $this->sendSuccess(new RefundReasonResource($reason), 'Refund reason created', 201);
     }
 
-    public function show(Request $request, string $params)
+    public function show(Request $request, string $params): JsonResponse
     {
-        $language = $request->language ?? config('shop.default_language', 'id');
+        $rawLanguage = $request->input('language');
+        $defaultLang = config('shop.default_language', 'id');
+        $language = is_string($rawLanguage) ? $rawLanguage : (is_string($defaultLang) ? $defaultLang : 'id');
+
         $reason = $this->queryService->find($params, $language);
 
         return $this->sendSuccess(new RefundReasonResource($reason), 'Refund reason detail');
     }
 
-    public function update(RefundReasonUpdateRequest $request, $id)
+    public function update(RefundReasonUpdateRequest $request, int|string $id): JsonResponse
     {
         $reason = $this->queryService->findOrFail((int) $id);
         $this->authorize('update', $reason);
@@ -65,7 +76,7 @@ class RefundReasonController extends BaseController
         return $this->sendSuccess(new RefundReasonResource($updated), 'Refund reason updated');
     }
 
-    public function destroy(Request $request, $id)
+    public function destroy(Request $request, int|string $id): JsonResponse
     {
         $reason = $this->queryService->findOrFail((int) $id);
         $this->authorize('delete', $reason);

@@ -14,20 +14,23 @@ use Illuminate\Http\Request;
 
 class ReviewService
 {
+    /**
+     * @return Builder<Review>
+     */
     public function getReviews(Request $request, ?User $user = null): Builder
     {
         $query = Review::query()->with(['user', 'product', 'order', 'shop']);
 
         if ($request->has('product_id')) {
-            $query->where('product_id', (int) $request->input('product_id'));
+            $query->where('product_id', $request->integer('product_id'));
         }
 
         if ($request->has('shop_id')) {
-            $query->where('shop_id', (int) $request->input('shop_id'));
+            $query->where('shop_id', $request->integer('shop_id'));
         }
 
         if ($request->has('user_id')) {
-            $query->where('user_id', (int) $request->input('user_id'));
+            $query->where('user_id', $request->integer('user_id'));
         }
 
         return $query;
@@ -66,7 +69,10 @@ class ReviewService
     {
         $review->update($data->toArray());
 
-        return $review->fresh();
+        /** @var Review $freshReview */
+        $freshReview = $review->fresh();
+
+        return $freshReview;
     }
 
     public function deleteReview(Review $review, User $user): void

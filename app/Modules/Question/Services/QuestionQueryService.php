@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Modules\Question\Services;
 
 use App\Models\Question;
@@ -43,7 +45,7 @@ class QuestionQueryService
     /**
      * Get paginated questions by user ID.
      *
-     * @return LengthAwarePaginator<Question>
+     * @return LengthAwarePaginator<int, Question>
      */
     public function getUserQuestions(int $userId, int $perPage = 15): LengthAwarePaginator
     {
@@ -62,6 +64,6 @@ class QuestionQueryService
     {
         $settings = Settings::getData(); // Assuming getData() is a static method returning settings object
 
-        return $settings->options['maximumQuestionLimit'] ?? 5;
+        return (int) ($settings->options['maximumQuestionLimit'] ?? 5);
     }
 }

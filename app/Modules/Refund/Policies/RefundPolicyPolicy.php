@@ -6,6 +6,7 @@ namespace App\Modules\Refund\Policies;
 
 use App\Enums\Permission;
 use App\Models\RefundPolicy;
+use App\Models\Shop;
 use App\Models\User;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
@@ -36,7 +37,9 @@ class RefundPolicyPolicy
         }
 
         if ($user->hasPermissionTo(Permission::STORE_OWNER->value)) {
-            return $policy->shop_id === $user->shops()->first()?->id;
+            $shop = $user->shops()->first();
+
+            return $shop instanceof Shop && $policy->shop_id === $shop->id;
         }
 
         return false;

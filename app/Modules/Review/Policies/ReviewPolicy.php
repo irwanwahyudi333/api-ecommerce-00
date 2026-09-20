@@ -25,7 +25,7 @@ class ReviewPolicy
 
     public function create(User $user): bool
     {
-        return $user !== null; // Only logged-in users can create reviews
+        return true; // Only logged-in users can create reviews
     }
 
     public function update(User $user, Review $review): bool

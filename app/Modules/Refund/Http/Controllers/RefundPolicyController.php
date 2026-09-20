@@ -6,6 +6,7 @@ namespace App\Modules\Refund\Http\Controllers;
 
 use App\Http\Controllers\BaseController;
 use App\Models\RefundPolicy;
+use App\Models\User;
 use App\Modules\Refund\DTO\RefundPolicyData;
 use App\Modules\Refund\Http\Requests\RefundPolicyStoreRequest;
 use App\Modules\Refund\Http\Requests\RefundPolicyUpdateRequest;
@@ -20,8 +21,12 @@ class RefundPolicyController extends BaseController
 
     public function index(Request $request): JsonResponse
     {
-        $limit = (int) $request->get('limit', 15);
-        $policies = $this->policyService->getPoliciesQuery($request, $request->user())->paginate($limit);
+        $rawLimit = $request->get('limit', 15);
+        $limit = is_numeric($rawLimit) ? (int) $rawLimit : 15;
+
+        /** @var User|null $user */
+        $user = $request->user();
+        $policies = $this->policyService->getPoliciesQuery($request, $user)->paginate($limit);
 
         return $this->sendPaginated(
             $policies,
@@ -34,8 +39,14 @@ class RefundPolicyController extends BaseController
     {
         $this->authorize('create', RefundPolicy::class);
 
+        /** @var User|null $user */
+        $user = $request->user();
+        if (! $user) {
+            abort(401);
+        }
+
         $data = RefundPolicyData::fromRequest($request);
-        $policy = $this->policyService->createPolicy($data, $request->user());
+        $policy = $this->policyService->createPolicy($data, $user);
 
         return $this->sendSuccess(
             new RefundPolicyResource($policy),
@@ -46,7 +57,9 @@ class RefundPolicyController extends BaseController
 
     public function show(Request $request, string $slug): JsonResponse
     {
-        $language = $request->get('language', config('shop.default_language', 'id'));
+        $defaultLang = config('shop.default_language', 'id');
+        $rawLanguage = $request->get('language', $defaultLang);
+        $language = is_string($rawLanguage) ? $rawLanguage : 'id';
         $policy = $this->policyService->findPolicy($slug, $language);
 
         return $this->sendSuccess(
@@ -60,8 +73,14 @@ class RefundPolicyController extends BaseController
         $policy = RefundPolicy::findOrFail($id);
         $this->authorize('update', $policy);
 
+        /** @var User|null $user */
+        $user = $request->user();
+        if (! $user) {
+            abort(401);
+        }
+
         $data = RefundPolicyData::fromRequest($request);
-        $updated = $this->policyService->updatePolicy($policy, $data, $request->user());
+        $updated = $this->policyService->updatePolicy($policy, $data, $user);
 
         return $this->sendSuccess(
             new RefundPolicyResource($updated),
@@ -74,7 +93,13 @@ class RefundPolicyController extends BaseController
         $policy = RefundPolicy::findOrFail($id);
         $this->authorize('delete', $policy);
 
-        $this->policyService->deletePolicy($policy, $request->user());
+        /** @var User|null $user */
+        $user = $request->user();
+        if (! $user) {
+            abort(401);
+        }
+
+        $this->policyService->deletePolicy($policy, $user);
 
         return $this->sendSuccess(
             null,

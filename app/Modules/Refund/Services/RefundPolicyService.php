@@ -6,6 +6,7 @@ namespace App\Modules\Refund\Services;
 
 use App\Enums\Permission;
 use App\Models\RefundPolicy;
+use App\Models\Shop;
 use App\Models\User;
 use App\Modules\Refund\DTO\RefundPolicyData;
 use Illuminate\Database\Eloquent\Builder;
@@ -13,14 +14,20 @@ use Illuminate\Http\Request;
 
 class RefundPolicyService
 {
-    public function getPoliciesQuery(Request $request, User $user): Builder
+    /**
+     * @return Builder<RefundPolicy>
+     */
+    public function getPoliciesQuery(Request $request, ?User $user = null): Builder
     {
-        $language = $request->get('language', config('shop.default_language', 'id'));
+        $defaultLang = config('shop.default_language', 'id');
+        $language = is_string($request->get('language')) ? $request->get('language') : (is_string($defaultLang) ? $defaultLang : 'id');
         $query = RefundPolicy::where('language', $language);
 
         // Filter by shop_id if not super_admin
-        if (! $user->hasPermissionTo('super_admin') && $request->has('shop_id')) {
-            $query->where('shop_id', $request->get('shop_id'));
+        if ($request->has('shop_id')) {
+            if (! $user || ! $user->hasPermissionTo(Permission::SUPER_ADMIN->value)) {
+                $query->where('shop_id', $request->get('shop_id'));
+            }
         }
 
         return $query;
@@ -39,9 +46,13 @@ class RefundPolicyService
     {
         $policyData = $data->toArray();
         if (! $user->hasPermissionTo(Permission::SUPER_ADMIN->value) && $user->hasPermissionTo(Permission::STORE_OWNER->value)) {
-            $policyData['shop_id'] = $user->shops()->first()?->id;
+            $shop = $user->shops()->first();
+            if ($shop instanceof Shop) {
+                $policyData['shop_id'] = $shop->id;
+            }
         }
 
+        /** @var RefundPolicy $policy */
         $policy = RefundPolicy::create($policyData);
 
         return $policy;
@@ -51,12 +62,17 @@ class RefundPolicyService
     {
         $policyData = $data->toArray();
         if (! $user->hasPermissionTo(Permission::SUPER_ADMIN->value) && $user->hasPermissionTo(Permission::STORE_OWNER->value)) {
-            $policyData['shop_id'] = $user->shops()->first()?->id;
+            $shop = $user->shops()->first();
+            if ($shop instanceof Shop) {
+                $policyData['shop_id'] = $shop->id;
+            }
         }
 
         $policy->update($policyData);
 
-        return $policy->fresh();
+        $fresh = $policy->fresh();
+
+        return $fresh instanceof RefundPolicy ? $fresh : $policy;
     }
 
     public function deletePolicy(RefundPolicy $policy, User $user): void

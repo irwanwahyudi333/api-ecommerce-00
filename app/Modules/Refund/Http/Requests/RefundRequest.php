@@ -6,18 +6,22 @@ namespace App\Modules\Refund\Http\Requests;
 
 use App\Models\Refund;
 use App\Models\User;
+use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 
 class RefundRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        /** @var User $user */
+        /** @var User|null $user */
         $user = $this->user();
 
-        return $user && $user->can('create', Refund::class);
+        return $user !== null && $user->can('create', Refund::class);
     }
 
+    /**
+     * @return array<string, ValidationRule|array<mixed>|string>
+     */
     public function rules(): array
     {
         return [

@@ -1,16 +1,21 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Modules\Question\Http\Controllers;
 
 use App\Http\Controllers\BaseController;
 use App\Models\Question;
+use App\Models\User;
 use App\Modules\Question\DTO\QuestionData;
 use App\Modules\Question\Http\Requests\QuestionCreateRequest;
 use App\Modules\Question\Http\Requests\QuestionUpdateRequest;
 use App\Modules\Question\Http\Resources\QuestionResource;
 use App\Modules\Question\Services\QuestionQueryService;
 use App\Modules\Question\Services\QuestionWriteService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 class QuestionController extends BaseController
@@ -23,9 +28,9 @@ class QuestionController extends BaseController
     /**
      * GET /questions
      */
-    public function index(Request $request)
+    public function index(Request $request): AnonymousResourceCollection
     {
-        $limit = $request->limit ?? 15;
+        $limit = is_numeric($request->input('limit')) ? (int) $request->input('limit') : 15;
         $questions = $this->questionQueryService->getQuestionsQuery($request)->paginate($limit);
 
         return QuestionResource::collection($questions);
@@ -34,22 +39,31 @@ class QuestionController extends BaseController
     /**
      * POST /questions
      */
-    public function store(QuestionCreateRequest $request)
+    public function store(QuestionCreateRequest $request): QuestionResource
     {
         $this->authorize('create', Question::class);
 
-        $userId = $request->user()->id;
-        $productId = $request->product_id;
-        $shopId = $request->shop_id;
+        /** @var User|null $user */
+        $user = $request->user();
+        if (! $user) {
+            abort(401);
+        }
+
+        $userId = (int) $user->id;
+        $validated = $request->validated();
+        $productId = is_numeric($validated['product_id'] ?? null) ? (int) $validated['product_id'] : 0;
+        $shopId = is_numeric($validated['shop_id'] ?? null) ? (int) $validated['shop_id'] : 0;
 
         $userQuestionCount = $this->questionQueryService->countUserQuestionsForProduct($userId, $productId, $shopId);
         $maxLimit = $this->questionQueryService->getMaximumQuestionLimit();
 
         if ($userQuestionCount >= $maxLimit) {
-            throw new HttpException(400, config('notice.MAXIMUM_QUESTION_LIMIT_EXCEEDED'));
+            $noticeMessage = config('notice.MAXIMUM_QUESTION_LIMIT_EXCEEDED');
+            $message = is_string($noticeMessage) ? $noticeMessage : 'Maximum question limit exceeded';
+            throw new HttpException(400, $message);
         }
 
-        $data = QuestionData::fromRequest($request->validated(), $userId);
+        $data = QuestionData::fromRequest($validated, $userId);
         $question = $this->questionWriteService->createQuestion($data);
 
         return new QuestionResource($question);
@@ -58,7 +72,7 @@ class QuestionController extends BaseController
     /**
      * GET /questions/{id}
      */
-    public function show($id)
+    public function show(int $id): QuestionResource
     {
         $question = $this->questionQueryService->findOrFail($id);
         $this->authorize('view', $question);
@@ -69,7 +83,7 @@ class QuestionController extends BaseController
     /**
      * PUT /questions/{id}
      */
-    public function update(QuestionUpdateRequest $request, $id)
+    public function update(QuestionUpdateRequest $request, int $id): QuestionResource
     {
         $question = $this->questionQueryService->findOrFail($id);
         $this->authorize('update', $question);
@@ -83,7 +97,7 @@ class QuestionController extends BaseController
     /**
      * DELETE /questions/{id}
      */
-    public function destroy($id)
+    public function destroy(int $id): JsonResponse
     {
         $question = $this->questionQueryService->findOrFail($id);
         $this->authorize('delete', $question);
@@ -96,10 +110,16 @@ class QuestionController extends BaseController
     /**
      * GET /my-questions
      */
-    public function myQuestions(Request $request)
+    public function myQuestions(Request $request): AnonymousResourceCollection
     {
-        $limit = $request->limit ?? 15;
-        $questions = $this->questionQueryService->getUserQuestions($request->user()->id, $limit);
+        /** @var User|null $user */
+        $user = $request->user();
+        if (! $user) {
+            abort(401);
+        }
+
+        $limit = is_numeric($request->input('limit')) ? (int) $request->input('limit') : 15;
+        $questions = $this->questionQueryService->getUserQuestions((int) $user->id, $limit);
 
         return QuestionResource::collection($questions);
     }

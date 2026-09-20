@@ -22,9 +22,13 @@ class RefundService
 {
     public function __construct(private WalletService $walletService) {}
 
+    /**
+     * @return Builder<Refund>
+     */
     public function getRefundsQuery(Request $request, User $user): Builder
     {
-        $language = $request->get('language', config('shop.default_language', 'id'));
+        $defaultLang = config('shop.default_language', 'id');
+        $language = is_string($request->get('language')) ? $request->get('language') : (is_string($defaultLang) ? $defaultLang : 'id');
         $query = Refund::with(['order', 'shop', 'customer', 'refundPolicy', 'refundReason'])
             ->whereHas('order', fn ($q) => $q->where('language', $language));
 
@@ -55,9 +59,12 @@ class RefundService
 
     public function storeRefund(RefundData $data, User $user): Refund
     {
-        $data->customerId = $user->id; // Ensure customer_id is the logged-in user
+        $refundData = $data->withCustomerId((int) $user->id);
 
-        return Refund::create($data->toArray());
+        /** @var Refund $refund */
+        $refund = Refund::create($refundData->toArray());
+
+        return $refund;
     }
 
     public function updateRefund(Refund $refund, RefundData $data, User $user): Refund
@@ -68,7 +75,9 @@ class RefundService
             $this->processApprovedRefund($refund);
         }
 
-        return $refund->fresh();
+        $fresh = $refund->fresh();
+
+        return $fresh instanceof Refund ? $fresh : $refund;
     }
 
     protected function processApprovedRefund(Refund $refund): void
@@ -85,13 +94,18 @@ class RefundService
                     ->decrement('total_earnings', $child->amount);
                 $updatedBalance = Balance::where('shop_id', $child->shop_id);
                 $updatedBalance->decrement('current_balance', $child->amount);
-                event(new CommissionRateUpdateEvent(Shop::find($child->shop_id), $updatedBalance->first()));
+
+                $shop = Shop::find($child->shop_id);
+                $balance = $updatedBalance->first();
+                if ($shop instanceof Shop && $balance instanceof Balance) {
+                    event(new CommissionRateUpdateEvent($shop, $balance));
+                }
             }
 
             $walletPoints = $this->walletService->currencyToWalletPoints($refund->amount);
 
-            if ($walletPoints > 0) {
-                $this->walletService->addPoints($refund->customer_id, $walletPoints);
+            if ($walletPoints > 0 && $refund->customer_id !== null) {
+                $this->walletService->addPoints((int) $refund->customer_id, $walletPoints);
             }
         });
     }

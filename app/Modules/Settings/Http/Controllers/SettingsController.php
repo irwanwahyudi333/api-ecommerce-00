@@ -18,7 +18,8 @@ class SettingsController extends BaseController
 
     public function index(Request $request): JsonResponse
     {
-        $language = $request->get('language', config('shop.default_language', 'id'));
+        $languageInput = $request->get('language', config('shop.default_language', 'id'));
+        $language = is_string($languageInput) ? $languageInput : '';
         $settings = $this->settingsService->getSettingsWithMaintenance($language);
 
         return $this->sendSuccess($settings, 'Settings retrieved successfully');

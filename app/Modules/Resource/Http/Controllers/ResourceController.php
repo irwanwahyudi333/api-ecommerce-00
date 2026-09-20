@@ -12,6 +12,7 @@ use App\Modules\Resource\Http\Requests\ResourceCreateRequest;
 use App\Modules\Resource\Http\Requests\ResourceUpdateRequest;
 use App\Modules\Resource\Http\Resources\ResourceResource;
 use App\Modules\Resource\Services\ResourceQueryService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class ResourceController extends BaseController
@@ -23,10 +24,13 @@ class ResourceController extends BaseController
         private readonly DeleteResourceAction $deleteAction,
     ) {}
 
-    public function index(Request $request)
+    public function index(Request $request): JsonResponse
     {
-        $language = $request->language ?? config('shop.default_language', 'id');
-        $limit = $request->limit ?? 15;
+        $lang = $request->language ?? config('shop.default_language', 'id');
+        $language = is_string($lang) ? $lang : 'id';
+
+        $lim = $request->limit ?? 15;
+        $limit = is_numeric($lim) ? (int) $lim : 15;
         $resources = $this->queryService->getResources($language, $limit);
 
         return $this->sendPaginated(
@@ -36,7 +40,7 @@ class ResourceController extends BaseController
         );
     }
 
-    public function store(ResourceCreateRequest $request)
+    public function store(ResourceCreateRequest $request): JsonResponse
     {
         $this->authorize('create', Resource::class);
 
@@ -46,15 +50,16 @@ class ResourceController extends BaseController
         return $this->sendSuccess(new ResourceResource($resource), 'Resource created', 201);
     }
 
-    public function show(Request $request, string $params)
+    public function show(Request $request, string $params): JsonResponse
     {
-        $language = $request->language ?? config('shop.default_language', 'id');
+        $lang = $request->language ?? config('shop.default_language', 'id');
+        $language = is_string($lang) ? $lang : 'id';
         $resource = $this->queryService->find($params, $language);
 
         return $this->sendSuccess(new ResourceResource($resource), 'Resource detail');
     }
 
-    public function update(ResourceUpdateRequest $request, $id)
+    public function update(ResourceUpdateRequest $request, int|string $id): JsonResponse
     {
         $resource = $this->queryService->findOrFail((int) $id);
         $this->authorize('update', $resource);
@@ -65,7 +70,7 @@ class ResourceController extends BaseController
         return $this->sendSuccess(new ResourceResource($updated), 'Resource updated');
     }
 
-    public function destroy(Request $request, $id)
+    public function destroy(Request $request, int|string $id): JsonResponse
     {
         $resource = $this->queryService->findOrFail((int) $id);
         $this->authorize('delete', $resource);

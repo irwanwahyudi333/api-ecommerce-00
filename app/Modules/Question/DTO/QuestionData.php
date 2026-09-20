@@ -1,8 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Modules\Question\DTO;
 
-class QuestionData
+final class QuestionData
 {
     public function __construct(
         public readonly ?int $product_id,
@@ -12,17 +14,28 @@ class QuestionData
         public readonly ?string $answer,
     ) {}
 
+    /**
+     * @param  array<string, mixed>  $data
+     */
     public static function fromRequest(array $data, ?int $userId = null): self
     {
+        $productId = $data['product_id'] ?? null;
+        $shopId = $data['shop_id'] ?? null;
+        $question = $data['question'] ?? null;
+        $answer = $data['answer'] ?? null;
+
         return new self(
-            product_id: $data['product_id'] ?? null,
-            shop_id: $data['shop_id'] ?? null,
+            product_id: is_numeric($productId) ? (int) $productId : null,
+            shop_id: is_numeric($shopId) ? (int) $shopId : null,
             user_id: $userId,
-            question: $data['question'] ?? null,
-            answer: $data['answer'] ?? null,
+            question: is_string($question) ? $question : null,
+            answer: is_string($answer) ? $answer : null,
         );
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function toArray(): array
     {
         return array_filter([

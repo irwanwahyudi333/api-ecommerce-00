@@ -12,13 +12,16 @@ class SettingsRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        /** @var User $user */
+        /** @var User|null $user */
         $user = $this->user();
 
         // Only super_admin can create or update settings
         return $user && $user->can('create', Settings::class);
     }
 
+    /**
+     * @return array<string, array<int, string>>
+     */
     public function rules(): array
     {
         return [

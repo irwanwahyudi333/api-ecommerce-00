@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Resource\Services;
 
 use App\Models\Resource;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Cache;
 
 final class ResourceQueryService
@@ -13,7 +13,7 @@ final class ResourceQueryService
     private const CACHE_TTL_SECONDS = 3600; // 1 hour
 
     /**
-     * @return LengthAwarePaginator<resource>
+     * @return LengthAwarePaginator<int, resource>
      */
     public function getResources(string $language, int $perPage = 15): LengthAwarePaginator
     {

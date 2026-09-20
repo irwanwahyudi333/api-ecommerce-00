@@ -4,10 +4,17 @@ declare(strict_types=1);
 
 namespace App\Modules\Review\Http\Resources;
 
+use App\Models\Review;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/**
+ * @property Review $resource
+ */
 class ReviewResource extends JsonResource
 {
+    /**
+     * @return array<string, mixed>
+     */
     public function toArray($request): array
     {
         return [
@@ -20,10 +27,10 @@ class ReviewResource extends JsonResource
             'comment' => $this->resource->comment,
             'rating' => $this->resource->rating,
             'photos' => $this->resource->photos,
-            'positive_feedbacks_count' => $this->resource->positive_feedbacks_count,
-            'negative_feedbacks_count' => $this->resource->negative_feedbacks_count,
-            'my_feedback' => $this->resource->my_feedback,
-            'abusive_reports_count' => $this->resource->abusive_reports_count,
+            'positive_feedbacks_count' => $this->resource->getAttribute('positive_feedbacks_count'),
+            'negative_feedbacks_count' => $this->resource->getAttribute('negative_feedbacks_count'),
+            'my_feedback' => $this->resource->getAttribute('my_feedback'),
+            'abusive_reports_count' => $this->resource->getAttribute('abusive_reports_count'),
             'created_at' => $this->resource->created_at,
             'updated_at' => $this->resource->updated_at,
             'deleted_at' => $this->resource->deleted_at,

@@ -15,6 +15,9 @@ class ShippingService
         private UpdateShippingAction $updateAction,
     ) {}
 
+    /**
+     * @return Collection<int, Shipping>
+     */
     public function getAll(): Collection
     {
         return Shipping::all();

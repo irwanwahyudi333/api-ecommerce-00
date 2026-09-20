@@ -18,6 +18,6 @@ final class UpdateQuestionAction
             event(new QuestionAnswered($question));
         }
 
-        return $question->fresh();
+        return $question->fresh() ?? $question;
     }
 }

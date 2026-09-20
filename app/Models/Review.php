@@ -10,6 +10,12 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * @property int|null $positive_feedbacks_count
+ * @property int|null $negative_feedbacks_count
+ * @property Feedback|null $my_feedback
+ * @property int|null $abusive_reports_count
+ */
 class Review extends Model
 {
     use HasFactory;

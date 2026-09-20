@@ -13,6 +13,9 @@ use Illuminate\Support\Facades\Cache;
 
 class SettingsService
 {
+    /**
+     * @return array<string, mixed>
+     */
     public function getApplicationSettings(): array
     {
         return [
@@ -21,6 +24,9 @@ class SettingsService
         ];
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     private function getServerInfo(): array
     {
         return [
@@ -46,26 +52,26 @@ class SettingsService
         });
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function getSettingsWithMaintenance(string $language): array
     {
         $settingsModel = $this->getSettings($language);
+        /** @var array<string, mixed> $data */
         $data = $settingsModel ? $settingsModel->toArray() : [];
 
-        if (
-            isset(
-                $data['options']['maintenance']['start'],
-                $data['options']['maintenance']['until']
-            )
-        ) {
-            $data['maintenance'] = [
-                'start' => Carbon::parse(
-                    $data['options']['maintenance']['start']
-                )->format('F j, Y h:i A'),
+        $options = $data['options'] ?? [];
+        if (is_array($options) && isset($options['maintenance']) && is_array($options['maintenance'])) {
+            $start = $options['maintenance']['start'] ?? null;
+            $until = $options['maintenance']['until'] ?? null;
 
-                'until' => Carbon::parse(
-                    $data['options']['maintenance']['until']
-                )->format('F j, Y h:i A'),
-            ];
+            if (is_string($start) && is_string($until)) {
+                $data['maintenance'] = [
+                    'start' => Carbon::parse($start)->format('F j, Y h:i A'),
+                    'until' => Carbon::parse($until)->format('F j, Y h:i A'),
+                ];
+            }
         }
 
         return $data;
@@ -85,6 +91,7 @@ class SettingsService
 
         if ($existing) {
             $existing->update(['options' => $mergedOptions]);
+            /** @var Settings $settings */
             $settings = $existing->fresh();
         } else {
             $settings = Settings::create([

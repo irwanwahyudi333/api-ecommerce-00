@@ -12,6 +12,9 @@ final class ShippingQueryService
 {
     private const CACHE_KEY_ALL = 'shippings_all';
 
+    /**
+     * @return Collection<int, Shipping>
+     */
     public function getAll(): Collection
     {
         return Cache::rememberForever(self::CACHE_KEY_ALL, function () {

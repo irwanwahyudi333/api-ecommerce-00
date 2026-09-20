@@ -6,12 +6,13 @@ namespace App\Modules\Review\Http\Controllers;
 
 use App\Http\Controllers\BaseController;
 use App\Models\Review;
+use App\Models\User;
 use App\Modules\Review\DTO\ReviewData;
 use App\Modules\Review\Http\Requests\ReviewCreateRequest;
 use App\Modules\Review\Http\Requests\ReviewUpdateRequest;
 use App\Modules\Review\Http\Resources\ReviewResource;
-use App\Modules\Review\Services\ReviewService;
-use App\Modules\Settings\Services\SettingsService; // Use modular SettingsService
+use App\Modules\Review\Services\ReviewService; // Use modular SettingsService
+use App\Modules\Settings\Services\SettingsService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -25,7 +26,7 @@ class ReviewController extends BaseController
 
     public function index(Request $request): JsonResponse
     {
-        $limit = (int) $request->get('limit', 15);
+        $limit = $request->integer('limit', 15);
         $reviews = $this->reviewService->getReviews($request, $request->user())->paginate($limit);
 
         return $this->sendPaginated(
@@ -39,14 +40,20 @@ class ReviewController extends BaseController
     {
         $this->authorize('create', Review::class);
 
-        $settings = $this->settingsService->getSettings(config('shop.default_language', 'id'));
-        $settingsOptions = $settings?->options ?? [];
+        /** @var string $language */
+        $language = config('shop.default_language', 'id');
+        $settings = $this->settingsService->getSettings($language);
+        $settingsOptions = $settings->options ?? [];
 
-        $productId = (int) $request->input('product_id');
-        $orderId = (int) $request->input('order_id');
-        $userId = $request->user()->id;
-        $shopId = (int) $request->input('shop_id');
-        $variationOptionId = $request->input('variation_option_id');
+        $productId = $request->integer('product_id');
+        $orderId = $request->integer('order_id');
+
+        /** @var User $user */
+        $user = $request->user();
+        $userId = (int) $user->id;
+
+        $shopId = $request->integer('shop_id');
+        $variationOptionId = $request->filled('variation_option_id') ? $request->integer('variation_option_id') : null;
 
         if (! $this->reviewService->validateProductInOrder($orderId, $productId)) {
             throw new HttpException(404, 'Product not found in the given order.');
@@ -55,7 +62,7 @@ class ReviewController extends BaseController
         $reviewSystem = $settingsOptions['reviewSystem']['value'] ?? null;
         if ($reviewSystem === 'review_single_time') {
             $exists = $this->reviewService->reviewExistsForOrder(
-                $userId, $orderId, $productId, $shopId, (int) $variationOptionId
+                $userId, $orderId, $productId, $shopId, $variationOptionId
             );
             if ($exists) {
                 throw new HttpException(400, 'You have already reviewed this product for this order.');
@@ -63,7 +70,7 @@ class ReviewController extends BaseController
         }
 
         $data = ReviewData::fromRequest($request);
-        $review = $this->reviewService->createReview($data, $request->user());
+        $review = $this->reviewService->createReview($data, $user);
 
         return $this->sendSuccess(
             new ReviewResource($review),
@@ -87,8 +94,11 @@ class ReviewController extends BaseController
         $review = Review::findOrFail($id);
         $this->authorize('update', $review);
 
+        /** @var User $user */
+        $user = $request->user();
+
         $data = ReviewData::fromRequest($request);
-        $updated = $this->reviewService->updateReview($review, $data, $request->user());
+        $updated = $this->reviewService->updateReview($review, $data, $user);
 
         return $this->sendSuccess(
             new ReviewResource($updated),
@@ -101,7 +111,10 @@ class ReviewController extends BaseController
         $review = Review::findOrFail($id);
         $this->authorize('delete', $review);
 
-        $this->reviewService->deleteReview($review, $request->user());
+        /** @var User $user */
+        $user = $request->user();
+
+        $this->reviewService->deleteReview($review, $user);
 
         return $this->sendSuccess(
             null,

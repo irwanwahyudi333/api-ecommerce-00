@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Models\Wishlist;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Validation\ValidationException;
@@ -74,15 +75,15 @@ class ProductService
     }
 
     /**
-     * @return \Illuminate\Database\Eloquent\Collection<int, Product>
+     * @return Collection<int, Product>
      */
-    public function getRelatedProducts(Product $product, int $limit = 10, ?string $language = null): \Illuminate\Database\Eloquent\Collection
+    public function getRelatedProducts(Product $product, int $limit = 10, ?string $language = null): Collection
     {
         $language = $language ?? (is_string(config('shop.default_language')) ? config('shop.default_language') : 'id');
         $categoryIds = $product->categories()->pluck('categories.id');
 
         if ($categoryIds->isEmpty()) {
-            return new \Illuminate\Database\Eloquent\Collection;
+            return new Collection;
         }
 
         return Product::where('language', $language)
