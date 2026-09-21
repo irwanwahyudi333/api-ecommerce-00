@@ -16,8 +16,10 @@ final class ShopQueryController extends BaseController
 
     public function search(Request $request): AnonymousResourceCollection
     {
-        $query = $request->get('q', '');
-        $limit = (int) $request->get('limit', 15);
+        $q = $request->get('q', '');
+        $query = is_string($q) ? $q : '';
+        $limitInput = $request->get('limit', 15);
+        $limit = is_numeric($limitInput) ? (int) $limitInput : 15;
 
         $shops = $this->shopQueryService->search($query, $limit, $request->all());
 

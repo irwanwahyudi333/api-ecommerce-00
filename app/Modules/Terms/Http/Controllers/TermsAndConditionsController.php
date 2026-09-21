@@ -14,6 +14,7 @@ use App\Modules\Terms\Http\Requests\TermsAndConditionsCreateRequest;
 use App\Modules\Terms\Http\Requests\TermsAndConditionsUpdateRequest;
 use App\Modules\Terms\Http\Resources\TermsConditionResource;
 use App\Modules\Terms\Services\TermsQueryService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class TermsAndConditionsController extends BaseController
@@ -27,10 +28,9 @@ class TermsAndConditionsController extends BaseController
         private readonly DisapproveTermAction $disapproveAction,
     ) {}
 
-    public function index(Request $request)
+    public function index(Request $request): JsonResponse
     {
-        $limit = $request->limit ?? 10;
-        $terms = $this->queryService->getTermsQuery($request, $request->user())->paginate($limit);
+        $terms = $this->queryService->getTermsQuery($request, $request->user());
 
         return $this->sendPaginated(
             $terms,
@@ -39,25 +39,28 @@ class TermsAndConditionsController extends BaseController
         );
     }
 
-    public function store(TermsAndConditionsCreateRequest $request)
+    public function store(TermsAndConditionsCreateRequest $request): JsonResponse
     {
         $this->authorize('create', TermsAndConditions::class);
 
-        $data = TermsData::fromRequest($request->validated(), $request->user()->id);
+        $userId = $request->user()?->id;
+        $data = TermsData::fromRequest($request->validated(), $userId);
         $term = $this->createAction->execute($data);
 
         return $this->sendSuccess(new TermsConditionResource($term), 'Terms created', 201);
     }
 
-    public function show(Request $request, $slug)
+    public function show(Request $request, string $slug): JsonResponse
     {
-        $language = $request->language ?? config('shop.default_language', 'id');
+        $defaultLang = config('shop.default_language', 'id');
+        $defaultLang = is_scalar($defaultLang) ? (string) $defaultLang : 'id';
+        $language = isset($request->language) && is_scalar($request->language) ? (string) $request->language : $defaultLang;
         $term = $this->queryService->find($slug, $language);
 
         return $this->sendSuccess(new TermsConditionResource($term), 'Terms detail');
     }
 
-    public function update(TermsAndConditionsUpdateRequest $request, $id)
+    public function update(TermsAndConditionsUpdateRequest $request, string $id): JsonResponse
     {
         $term = $this->queryService->findOrFail((int) $id);
         $this->authorize('update', $term);
@@ -68,7 +71,7 @@ class TermsAndConditionsController extends BaseController
         return $this->sendSuccess(new TermsConditionResource($updated), 'Terms updated');
     }
 
-    public function destroy(Request $request, $id)
+    public function destroy(Request $request, string $id): JsonResponse
     {
         $term = $this->queryService->findOrFail((int) $id);
         $this->authorize('delete', $term);
@@ -78,9 +81,10 @@ class TermsAndConditionsController extends BaseController
         return $this->sendSuccess(null, 'Terms deleted');
     }
 
-    public function approveTerm(Request $request)
+    public function approveTerm(Request $request): JsonResponse
     {
-        $term = $this->queryService->findOrFail((int) $request->id);
+        $id = is_scalar($request->id) ? (int) $request->id : 0;
+        $term = $this->queryService->findOrFail($id);
         $this->authorize('approve', $term);
 
         $this->approveAction->execute($term);
@@ -88,9 +92,10 @@ class TermsAndConditionsController extends BaseController
         return $this->sendSuccess(new TermsConditionResource($term), 'Term approved');
     }
 
-    public function disApproveTerm(Request $request)
+    public function disApproveTerm(Request $request): JsonResponse
     {
-        $term = $this->queryService->findOrFail((int) $request->id);
+        $id = is_scalar($request->id) ? (int) $request->id : 0;
+        $term = $this->queryService->findOrFail($id);
         $this->authorize('disapprove', $term);
 
         $this->disapproveAction->execute($term);

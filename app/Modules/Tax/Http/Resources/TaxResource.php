@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Tax\Http\Resources;
 
 use App\Models\Tax;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
@@ -12,6 +13,10 @@ use Illuminate\Http\Resources\Json\JsonResource;
  */
 final class TaxResource extends JsonResource
 {
+    /**
+     * @param  Request  $request
+     * @return array<string, mixed>
+     */
     public function toArray($request): array
     {
         return [

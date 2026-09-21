@@ -17,7 +17,7 @@ final class UpdateTermAction
             'title' => $data->title,
             'description' => $data->description,
             'language' => $data->language,
-            'slug' => ($data->slug && $data->slug !== $term->slug) ? $data->slug : ($data->title ? Str::slug($data->title) : null),
+            'slug' => ($data->slug && $data->slug !== $term->slug) ? $data->slug : ($data->title ? Str::slug((string) $data->title) : null),
             'shop_id' => $data->shop_id,
             'user_id' => $data->user_id,
         ], fn ($v) => ! is_null($v));
@@ -26,6 +26,6 @@ final class UpdateTermAction
 
         Cache::forget("terms_{$term->language}_*"); // Invalidate cache
 
-        return $term->fresh();
+        return $term->refresh();
     }
 }

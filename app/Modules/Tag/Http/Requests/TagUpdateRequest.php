@@ -12,14 +12,17 @@ class TagUpdateRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        /** @var User $user */
+        /** @var User|null $user */
         $user = $this->user();
         /** @var Tag $tag */
         $tag = $this->route('tag');
 
-        return $user && $user->can('update', $tag);
+        return $user !== null && $user->can('update', $tag);
     }
 
+    /**
+     * @return array<string, array<int, string>>
+     */
     public function rules(): array
     {
         return [

@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Modules\Withdraw\Services;
 
 use App\Enums\Permission;
+use App\Models\User;
 use App\Models\Withdraw;
-use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
@@ -17,10 +17,11 @@ final class WithdrawQueryService
      *
      * @return Builder<Withdraw>
      */
-    public function getWithdrawsQuery(Request $request, Authenticatable $user): Builder
+    public function getWithdrawsQuery(Request $request, User $user): Builder
     {
         $query = Withdraw::with('shop');
-        $shopId = $request->shop_id ?? null;
+        $shopId = $request->shop_id;
+        $shopId = is_numeric($shopId) ? (int) $shopId : null;
 
         if ($user->hasPermissionTo(Permission::SUPER_ADMIN->value)) {
             if ($shopId) {
@@ -38,7 +39,7 @@ final class WithdrawQueryService
     /**
      * Find single withdraw with permission check.
      */
-    public function findWithdraw(int $id, Authenticatable $user): Withdraw
+    public function findWithdraw(int $id, User $user): Withdraw
     {
         $withdraw = Withdraw::with('shop')->findOrFail($id);
 

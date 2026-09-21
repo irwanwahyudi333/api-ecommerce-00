@@ -33,6 +33,7 @@ final class UserCommandService
      */
     public function createByAdmin(array $validated): User
     {
+        /** @var array{name: string, email: string, password: string, shop_id?: int|null, profile?: array<string, mixed>|null, address?: array<string, mixed>|null} $validated */
         return $this->createUserAction->execute($validated);
     }
 
@@ -46,6 +47,7 @@ final class UserCommandService
      */
     public function updateByAdmin(User $target, array $validated): User
     {
+        /** @var array{name?: string|null, email?: string|null, shop_id?: int|null} $validated */
         return $this->adminUpdateUserAction->execute($target, $validated);
     }
 

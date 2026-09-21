@@ -3,14 +3,21 @@
 namespace App\Modules\Wishlist\Http\Resources;
 
 use App\Models\Wishlist;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
+ * @property Wishlist $resource
+ *
  * @mixin Wishlist
  */
 class WishlistResource extends JsonResource
 {
-    public function toArray($request)
+    /**
+     * @param  Request  $request
+     * @return array<string, mixed>
+     */
+    public function toArray($request): array
     {
         return [
             'id' => $this->resource->id,

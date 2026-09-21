@@ -69,6 +69,11 @@ final class AuthService
         return false;
     }
 
+    /**
+     * @param  array<string, mixed>  $data
+     *
+     * @throws AuthException
+     */
     public function sendPasswordResetLink(array $data): string
     {
         $status = Password::sendResetLink($data);
@@ -80,8 +85,14 @@ final class AuthService
         return (string) $status;
     }
 
+    /**
+     * @param  array<string, mixed>  $data
+     *
+     * @throws AuthException
+     */
     public function resetPassword(array $data): string
     {
+        /** @var string $status */
         $status = Password::reset($data, function (User $user, string $password) {
             $user->forceFill([
                 'password' => Hash::make($password),
@@ -93,10 +104,10 @@ final class AuthService
         });
 
         if ($status !== Password::PASSWORD_RESET) {
-            throw new AuthException((string) $status);
+            throw new AuthException($status);
         }
 
-        return (string) $status;
+        return $status;
     }
 
     public function issueToken(User $user, ?string $deviceName = null): string

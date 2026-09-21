@@ -103,6 +103,6 @@ class UserPolicy
 
     public function verify(User $actor): bool
     {
-        return $actor !== null;
+        return true;
     }
 }

@@ -6,7 +6,6 @@ use App\Models\Type;
 use App\Modules\Type\Actions\CreateTypeAction;
 use App\Modules\Type\Actions\UpdateTypeAction;
 use App\Modules\Type\DTO\TypeData;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class TypeService
 {
@@ -15,12 +14,15 @@ class TypeService
         private UpdateTypeAction $updateType
     ) {}
 
-    public function getTypesByLanguage(string $language, int $limit): LengthAwarePaginator
+    /**
+     * @return \Illuminate\Pagination\LengthAwarePaginator<int, Type>
+     */
+    public function getTypesByLanguage(string $language, int $limit): \Illuminate\Pagination\LengthAwarePaginator
     {
         return Type::where('language', $language)->paginate($limit);
     }
 
-    public function getTypeByIdOrSlug($identifier, string $language): Type
+    public function getTypeByIdOrSlug(int|string $identifier, string $language): Type
     {
         if (is_numeric($identifier)) {
             return Type::with('banners')->findOrFail($identifier);

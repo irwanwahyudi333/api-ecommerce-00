@@ -32,7 +32,10 @@ final class AdminUpdateUserAction
                 $user->update($updateData);
             }
 
-            return $user->fresh(['profile', 'address', 'shops', 'managed_shop']);
+            $freshUser = $user->fresh(['profile', 'address', 'shops', 'managed_shop']);
+            assert($freshUser instanceof User);
+
+            return $freshUser;
         });
     }
 }

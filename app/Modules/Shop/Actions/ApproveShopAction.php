@@ -21,12 +21,14 @@ final class ApproveShopAction
 
             $balance = Balance::firstOrNew(['shop_id' => $shop->id]);
             $balance->admin_commission_rate = $data->is_custom_commission
-                ? $data->admin_commission_rate
-                : $shop->getDefaultCommissionRate($balance->total_earnings ?? 0.0);
+                ? (float) $data->admin_commission_rate
+                : (float) $shop->getDefaultCommissionRate((float) ($balance->total_earnings ?? 0.0));
             $balance->is_custom_commission = $data->is_custom_commission;
             $balance->save();
         });
 
-        return $shop->fresh(['balance']);
+        $shop->load('balance');
+
+        return $shop;
     }
 }

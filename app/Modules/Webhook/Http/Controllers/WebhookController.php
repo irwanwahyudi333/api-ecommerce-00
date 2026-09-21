@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\Webhook\Http\Controllers;
 
 use App\Http\Controllers\BaseController;
+use App\Models\User;
 use App\Models\Webhook;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -13,13 +14,16 @@ final class WebhookController extends BaseController
 {
     public function index(Request $request): JsonResponse
     {
-        $webhooks = Webhook::where('user_id', $request->user()->id)->paginate(15);
+        /** @var User $user */
+        $user = $request->user();
+        $webhooks = Webhook::where('user_id', $user->id)->paginate(15);
 
         return $this->sendPaginated($webhooks, $webhooks->getCollection(), 'Webhooks retrieved successfully');
     }
 
     public function store(Request $request): JsonResponse
     {
+        /** @var array<string, mixed> $data */
         $data = $request->validate([
             'name' => 'required|string|max:255',
             'url' => 'required|url',
@@ -27,14 +31,18 @@ final class WebhookController extends BaseController
             'events.*' => 'string',
         ]);
 
-        $webhook = $request->user()->webhooks()->create($data);
+        /** @var User $user */
+        $user = $request->user();
+        $webhook = $user->webhooks()->create($data);
 
         return $this->sendSuccess($webhook, 'Webhook created successfully', 201);
     }
 
     public function show(Webhook $webhook, Request $request): JsonResponse
     {
-        if ($webhook->user_id !== $request->user()->id) {
+        /** @var User $user */
+        $user = $request->user();
+        if ($webhook->user_id !== $user->id) {
             return $this->sendError('Unauthorized', 403);
         }
 
@@ -43,10 +51,13 @@ final class WebhookController extends BaseController
 
     public function update(Request $request, Webhook $webhook): JsonResponse
     {
-        if ($webhook->user_id !== $request->user()->id) {
+        /** @var User $user */
+        $user = $request->user();
+        if ($webhook->user_id !== $user->id) {
             return $this->sendError('Unauthorized', 403);
         }
 
+        /** @var array<string, mixed> $data */
         $data = $request->validate([
             'name' => 'sometimes|string|max:255',
             'url' => 'sometimes|url',
@@ -62,7 +73,9 @@ final class WebhookController extends BaseController
 
     public function destroy(Webhook $webhook, Request $request): JsonResponse
     {
-        if ($webhook->user_id !== $request->user()->id) {
+        /** @var User $user */
+        $user = $request->user();
+        if ($webhook->user_id !== $user->id) {
             return $this->sendError('Unauthorized', 403);
         }
         $webhook->delete();

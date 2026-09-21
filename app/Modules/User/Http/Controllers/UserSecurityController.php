@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\User\Http\Controllers;
 
 use App\Http\Controllers\BaseController;
+use App\Models\User;
 use App\Modules\User\Http\Requests\ChangePasswordRequest;
 use App\Modules\User\Services\UserSecurityService;
 use Illuminate\Http\JsonResponse;
@@ -20,39 +21,46 @@ class UserSecurityController extends BaseController
 
     public function changePassword(ChangePasswordRequest $request): JsonResponse
     {
+        /** @var User $user */
         $user = $request->user();
 
         $this->authorize('changePassword', $user);
 
-        if (! Hash::check($request->old_password, $user->password)) {
+        /** @var string $oldPassword */
+        $oldPassword = $request->old_password;
+        /** @var string $newPassword */
+        $newPassword = $request->new_password;
+
+        if (! Hash::check($oldPassword, $user->password)) {
             throw ValidationException::withMessages([
                 'old_password' => ['Password lama tidak cocok.'],
             ]);
         }
 
-        $passwordErrors = $this->securityService->validatePasswordStrength($request->new_password);
+        $passwordErrors = $this->securityService->validatePasswordStrength($newPassword);
         if (! empty($passwordErrors)) {
             throw ValidationException::withMessages([
                 'new_password' => $passwordErrors,
             ]);
         }
 
-        if ($this->securityService->isPasswordInHistory($user, $request->new_password)) {
+        if ($this->securityService->isPasswordInHistory($user, $newPassword)) {
             throw ValidationException::withMessages([
                 'new_password' => ['Password baru tidak boleh sama dengan password sebelumnya.'],
             ]);
         }
 
-        $user->password = Hash::make($request->new_password);
+        $user->password = Hash::make($newPassword);
         $user->save();
 
-        $this->securityService->recordPasswordChange($user, $request->new_password);
+        $this->securityService->recordPasswordChange($user, $newPassword);
 
         return $this->sendSuccess(null, 'Password berhasil diubah.');
     }
 
     public function logoutFromAllDevices(Request $request): JsonResponse
     {
+        /** @var User $user */
         $user = $request->user();
         $this->authorize('revokeSessions', $user);
 
@@ -63,6 +71,7 @@ class UserSecurityController extends BaseController
 
     public function viewActiveSessions(Request $request): JsonResponse
     {
+        /** @var User $user */
         $user = $request->user();
         $this->authorize('viewSessions', $user);
 
@@ -82,6 +91,7 @@ class UserSecurityController extends BaseController
 
     public function revokeSession(Request $request, int $sessionId): JsonResponse
     {
+        /** @var User $user */
         $user = $request->user();
         $this->authorize('revokeSessions', $user);
 

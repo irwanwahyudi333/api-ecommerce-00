@@ -15,7 +15,9 @@ use App\Modules\StoreNotice\Http\Requests\StoreNoticeRequest;
 use App\Modules\StoreNotice\Http\Requests\StoreNoticeUpdateRequest;
 use App\Modules\StoreNotice\Http\Resources\StoreNoticeResource;
 use App\Modules\StoreNotice\Services\StoreNoticeQueryService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 
 class StoreNoticeController extends BaseController
 {
@@ -28,47 +30,60 @@ class StoreNoticeController extends BaseController
         private readonly MarkMultipleStoreNoticesAsReadAction $markMultipleAsReadAction,
     ) {}
 
-    public function index(Request $request)
+    public function index(Request $request): AnonymousResourceCollection
     {
         $this->authorize('viewAny', StoreNotice::class);
 
-        $limit = $request->limit ?? 15;
-        $storeNotices = $this->queryService->getStoreNoticesQuery($request, $request->user())
+        $limitInput = $request->input('limit', 15);
+        $limit = is_numeric($limitInput) ? (int) $limitInput : 15;
+        $user = $request->user();
+        if (! $user) {
+            abort(401);
+        }
+        $storeNotices = $this->queryService->getStoreNoticesQuery($request, $user)
             ->paginate($limit);
 
         return StoreNoticeResource::collection($storeNotices);
     }
 
-    public function store(StoreNoticeRequest $request)
+    public function store(StoreNoticeRequest $request): StoreNoticeResource
     {
         $this->authorize('create', StoreNotice::class);
 
         $data = StoreNoticeData::fromRequest($request->validated());
-        $storeNotice = $this->createAction->execute($data, $request->user());
+        $storeNotice = $this->createAction->execute($data);
 
         return new StoreNoticeResource($storeNotice);
     }
 
-    public function getStoreNoticeType(Request $request)
+    public function getStoreNoticeType(Request $request): JsonResponse
     {
         $this->authorize('viewAny', StoreNotice::class); // Assuming any user who can view notices can view types
 
         return response()->json($this->queryService->getStoreNoticeTypes($request->user()));
     }
 
-    public function getUsersToNotify(Request $request)
+    public function getUsersToNotify(Request $request): JsonResponse
     {
         $this->authorize('create', StoreNotice::class); // Only users who can create notices can see who to notify
         $type = $request->type;
-        if (in_array($type, [StoreNoticeType::ALL_SHOP->value, StoreNoticeType::ALL_VENDOR->value])) {
-            throw new \Exception(config('notice.ACTION_NOT_VALID'), 400);
+        $msg = config('notice.ACTION_NOT_VALID');
+        if (! is_string($msg)) {
+            $msg = 'Action not valid';
         }
-        $users = $this->queryService->getUsersToNotify($request, $request->user());
+        if (in_array($type, [StoreNoticeType::ALL_SHOP->value, StoreNoticeType::ALL_VENDOR->value])) {
+            throw new \Exception($msg, 400);
+        }
+        $user = $request->user();
+        if (! $user) {
+            abort(401);
+        }
+        $users = $this->queryService->getUsersToNotify($request, $user);
 
         return response()->json($users);
     }
 
-    public function show(Request $request, $id)
+    public function show(Request $request, string $id): StoreNoticeResource
     {
         $storeNotice = $this->queryService->findOrFail((int) $id);
         $this->authorize('view', $storeNotice);
@@ -76,18 +91,18 @@ class StoreNoticeController extends BaseController
         return new StoreNoticeResource($storeNotice);
     }
 
-    public function update(StoreNoticeUpdateRequest $request, $id)
+    public function update(StoreNoticeUpdateRequest $request, string $id): StoreNoticeResource
     {
         $storeNotice = $this->queryService->findOrFail((int) $id);
         $this->authorize('update', $storeNotice);
 
         $data = StoreNoticeData::fromRequest($request->validated());
-        $updated = $this->updateAction->execute($storeNotice, $data, $request->user());
+        $updated = $this->updateAction->execute($storeNotice, $data);
 
         return new StoreNoticeResource($updated);
     }
 
-    public function destroy(Request $request, $id)
+    public function destroy(Request $request, string $id): JsonResponse
     {
         $storeNotice = $this->queryService->findOrFail((int) $id);
         $this->authorize('delete', $storeNotice);
@@ -97,18 +112,25 @@ class StoreNoticeController extends BaseController
         return response()->json(['message' => 'Store notice deleted']);
     }
 
-    public function readNotice(Request $request)
+    public function readNotice(Request $request): JsonResponse
     {
         $request->validate(['id' => 'required|exists:store_notices,id']);
-        $notice = $this->queryService->findOrFail((int) $request->id);
+        $inputId = $request->input('id');
+        $id = is_numeric($inputId) ? (int) $inputId : 0;
+        $notice = $this->queryService->findOrFail($id);
         $this->authorize('read', $notice); // Authorize if user can mark this specific notice as read
 
-        $this->markAsReadAction->execute($notice, $request->user()->id);
+        $user = $request->user();
+        if (! $user) {
+            abort(401);
+        }
+
+        $this->markAsReadAction->execute($notice, $user->id);
 
         return response()->json(['success' => true]);
     }
 
-    public function readAllNotice(Request $request)
+    public function readAllNotice(Request $request): JsonResponse
     {
         $request->validate([
             'notices' => 'required|array|min:1',
@@ -117,7 +139,15 @@ class StoreNoticeController extends BaseController
         // Authorize if user can mark multiple notices as read (e.g., all notices they have access to)
         $this->authorize('readAny', StoreNotice::class);
 
-        $this->markMultipleAsReadAction->execute($request->notices, $request->user()->id);
+        /** @var array<int> $notices */
+        $notices = $request->input('notices', []);
+
+        $user = $request->user();
+        if (! $user) {
+            abort(401);
+        }
+
+        $this->markMultipleAsReadAction->execute($notices, $user->id);
 
         return response()->json(['success' => true]);
     }

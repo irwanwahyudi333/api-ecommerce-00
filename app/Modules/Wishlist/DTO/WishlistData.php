@@ -10,15 +10,21 @@ class WishlistData
         public readonly ?int $variation_option_id,
     ) {}
 
+    /**
+     * @param  array<string, mixed>  $data
+     */
     public static function fromRequest(array $data, int $userId): self
     {
         return new self(
-            product_id: $data['product_id'],
+            product_id: is_numeric($data['product_id']) ? (int) $data['product_id'] : 0,
             user_id: $userId,
-            variation_option_id: $data['variation_option_id'] ?? null,
+            variation_option_id: isset($data['variation_option_id']) && is_numeric($data['variation_option_id']) ? (int) $data['variation_option_id'] : null,
         );
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function toArray(): array
     {
         return array_filter([

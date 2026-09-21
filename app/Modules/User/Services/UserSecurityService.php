@@ -23,6 +23,7 @@ class UserSecurityService
     public function enforceRateLimit(string $ip, string $identifier): bool
     {
         $cacheKey = "rate_limit:auth:{$ip}:{$identifier}";
+        /** @var int $attempts */
         $attempts = Cache::get($cacheKey, 0);
 
         if ($attempts >= 10) {
@@ -34,6 +35,9 @@ class UserSecurityService
         return true;
     }
 
+    /**
+     * @return array<int, string>
+     */
     public function validatePasswordStrength(string $password): array
     {
         $errors = [];
@@ -76,6 +80,7 @@ class UserSecurityService
             }
         );
 
+        /** @var string $oldHash */
         foreach ($passwordHistory as $oldHash) {
             if (password_verify($newPassword, $oldHash)) {
                 return true;

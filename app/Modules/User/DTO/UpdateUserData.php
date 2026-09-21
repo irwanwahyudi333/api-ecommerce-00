@@ -13,6 +13,10 @@ namespace App\Modules\User\DTO;
  */
 final readonly class UpdateUserData
 {
+    /**
+     * @param  array<string, mixed>|null  $profile
+     * @param  array<string, mixed>|null  $address
+     */
     public function __construct(
         public ?string $name = null,
         public ?string $email = null,
@@ -21,7 +25,7 @@ final readonly class UpdateUserData
     ) {}
 
     /**
-     * @param  array<string, mixed>  $validated
+     * @param  array{name?: string|null, email?: string|null, profile?: array<string, mixed>|null, address?: array<string, mixed>|null}  $validated
      */
     public static function fromValidated(array $validated): self
     {

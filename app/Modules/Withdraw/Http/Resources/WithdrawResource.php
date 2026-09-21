@@ -4,14 +4,21 @@ namespace App\Modules\Withdraw\Http\Resources;
 
 use App\Models\Withdraw;
 use App\Modules\Shop\Http\Resources\ShopResource;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
+ * @property Withdraw $resource
+ *
  * @mixin Withdraw
  */
 class WithdrawResource extends JsonResource
 {
-    public function toArray($request)
+    /**
+     * @param  Request  $request
+     * @return array<string, mixed>
+     */
+    public function toArray($request): array
     {
         return [
             'id' => $this->resource->id,

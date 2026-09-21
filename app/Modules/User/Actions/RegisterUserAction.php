@@ -29,17 +29,21 @@ final class RegisterUserAction
             ]);
 
             if ($data->profile) {
-                $user->profile()->create(Arr::only(
+                /** @var array<string, mixed> $profileData */
+                $profileData = Arr::only(
                     $data->profile,
                     ['avatar', 'bio', 'socials']
-                ));
+                );
+                $user->profile()->create($profileData);
             }
 
             if ($data->address) {
-                $user->address()->create(Arr::only(
+                /** @var array<string, mixed> $addressData */
+                $addressData = Arr::only(
                     $data->address,
                     ['street_address', 'city', 'state', 'zip', 'country']
-                ));
+                );
+                $user->address()->create($addressData);
             }
 
             // Validasi nilai final di sini (bukan hanya di FormRequest) -> defense in depth.
@@ -62,7 +66,8 @@ final class RegisterUserAction
         }
 
         // Proses non-kritis (poin signup) didelegasikan ke Queue, tidak memblokir response.
-        $signupPoints = (int) data_get($settings, 'options.signupPoints', 0);
+        $signupPointsRaw = data_get($settings, 'options.signupPoints', 0);
+        $signupPoints = is_numeric($signupPointsRaw) ? (int) $signupPointsRaw : 0;
         if ($signupPoints > 0) {
             GiveSignupPointsJob::dispatch($user->id, $signupPoints);
         }

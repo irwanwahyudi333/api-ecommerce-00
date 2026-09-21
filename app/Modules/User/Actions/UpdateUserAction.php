@@ -18,6 +18,10 @@ final class UpdateUserAction
         return DB::transaction(function () use ($user, $data): User {
             if ($data->address) {
                 foreach ($data->address as $address) {
+                    if (! is_array($address)) {
+                        continue;
+                    }
+                    /** @var array<string, mixed> $payload */
                     $payload = Arr::only($address, [
                         'title', 'type', 'street_address', 'city', 'state',
                         'zip', 'country', 'phone', 'is_default',
@@ -36,7 +40,8 @@ final class UpdateUserAction
                 }
             }
 
-            if ($data->profile) {
+            if ($data->profile && is_array($data->profile)) {
+                /** @var array<string, mixed> $payload */
                 $payload = Arr::only($data->profile, ['bio', 'avatar', 'contact', 'gender', 'birth_date']);
 
                 if (isset($data->profile['id'])) {
@@ -58,7 +63,10 @@ final class UpdateUserAction
                 $user->update($updateData);
             }
 
-            return $user->fresh(['profile', 'address', 'shops', 'managed_shop']);
+            $freshUser = $user->fresh(['profile', 'address', 'shops', 'managed_shop']);
+            assert($freshUser instanceof User);
+
+            return $freshUser;
         });
     }
 }

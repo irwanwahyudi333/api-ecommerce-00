@@ -81,8 +81,17 @@ class TermsPolicy
      */
     public function delete(User $user, TermsAndConditions $term): bool
     {
-        return $user->hasPermissionTo(Permission::SUPER_ADMIN->value)
-            || ($user->hasPermissionTo(Permission::STORE_OWNER->value) && $term->shop_id && $term->shop->owner_id === $user->id);
+        if ($user->hasPermissionTo(Permission::SUPER_ADMIN->value)) {
+            return true;
+        }
+
+        if ($user->hasPermissionTo(Permission::STORE_OWNER->value) && $term->shop_id) {
+            $shop = Shop::find($term->shop_id);
+
+            return $shop && $shop->owner_id === $user->id;
+        }
+
+        return false;
     }
 
     /**

@@ -73,6 +73,8 @@ final class UserQueryService
 
     /**
      * Eager loading wajib (profile, address) -> mencegah N+1 saat di-paginate + di-resource-kan.
+     *
+     * @return LengthAwarePaginator<int, User>
      */
     public function paginatedVendors(?int $shopId, ?int $exclude, bool $isActive, int $limit): LengthAwarePaginator
     {

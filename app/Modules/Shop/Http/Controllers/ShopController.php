@@ -50,8 +50,11 @@ class ShopController extends BaseController
 
     public function store(ShopCreateRequest $request, CreateShopAction $action): ShopResource
     {
+        $user = $request->user();
+        abort_if(! $user, 401);
+
         $data = ShopData::fromValidated($request->validated())
-            ->withOwnerId($request->user()->id);
+            ->withOwnerId($user->id);
 
         $shop = $action->execute($data);
 
@@ -120,13 +123,19 @@ class ShopController extends BaseController
 
     public function myShops(Request $request): AnonymousResourceCollection
     {
-        return ShopResource::collection($request->user()->shops);
+        $user = $request->user();
+        abort_if(! $user, 401);
+
+        return ShopResource::collection($user->shops);
     }
 
     public function followedShopsPopularProducts(Request $request): JsonResponse
     {
         $limit = (int) ($request->integer('limit') ?: 10);
-        $products = $this->shops->followedShopsPopularProducts($request->user(), $limit);
+        $user = $request->user();
+        abort_if(! $user, 401);
+
+        $products = $this->shops->followedShopsPopularProducts($user, $limit);
 
         return response()->json($products);
     }
@@ -134,30 +143,44 @@ class ShopController extends BaseController
     public function userFollowedShops(Request $request): AnonymousResourceCollection
     {
         $limit = (int) ($request->integer('limit') ?: 15);
-        $shops = $this->shops->followedShops($request->user(), $limit);
+        $user = $request->user();
+        abort_if(! $user, 401);
+
+        $shops = $this->shops->followedShops($user, $limit);
 
         return ShopResource::collection($shops);
     }
 
     public function userFollowedShop(FollowShopRequest $request): JsonResponse
     {
-        $isFollowing = $this->shops->isFollowing($request->user(), (int) $request->validated('shop_id'));
+        $user = $request->user();
+        abort_if(! $user, 401);
+
+        $shopId = $request->validated('shop_id');
+        $isFollowing = $this->shops->isFollowing($user, is_numeric($shopId) ? (int) $shopId : 0);
 
         return response()->json($isFollowing);
     }
 
     public function handleFollowShop(FollowShopRequest $request, ToggleFollowShopAction $action): JsonResponse
     {
-        $result = $action->execute($request->user(), (int) $request->validated('shop_id'));
+        $user = $request->user();
+        abort_if(! $user, 401);
+
+        $shopId = $request->validated('shop_id');
+        $result = $action->execute($user, is_numeric($shopId) ? (int) $shopId : 0);
 
         return response()->json($result);
     }
 
     public function nearByShop(NearbyShopRequest $request): JsonResponse
     {
+        $lat = $request->validated('lat');
+        $lng = $request->validated('lng');
+
         $shops = $this->shops->findNearby(
-            (float) $request->validated('lat'),
-            (float) $request->validated('lng'),
+            is_numeric($lat) ? (float) $lat : 0.0,
+            is_numeric($lng) ? (float) $lng : 0.0,
         );
 
         return response()->json($shops);
@@ -175,17 +198,26 @@ class ShopController extends BaseController
 
     public function transferShopOwnership(OwnershipTransferRequest $request, TransferShopOwnershipAction $action): JsonResponse
     {
-        $shop = Shop::findOrFail($request->validated('shop_id'));
+        $shopId = $request->validated('shop_id');
+        $shop = Shop::findOrFail(is_scalar($shopId) ? $shopId : 0);
+
         $this->authorize('transferOwnership', $shop);
 
-        $newOwner = User::findOrFail($request->validated('vendor_id'));
+        $vendorId = $request->validated('vendor_id');
+        $newOwner = User::findOrFail(is_scalar($vendorId) ? $vendorId : 0);
+
+        $user = $request->user();
+        abort_if(! $user, 401);
+
+        $message = $request->validated('message');
+        $vendorMessage = $request->validated('vendorMessage');
 
         $action->execute(
             $shop,
             $newOwner,
-            $request->user(),
-            $request->validated('message'),
-            $request->validated('vendorMessage'),
+            $user,
+            is_string($message) ? $message : null,
+            is_string($vendorMessage) ? $vendorMessage : null,
         );
 
         return response()->json(['message' => 'Ownership transfer initiated']);

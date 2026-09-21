@@ -20,8 +20,11 @@ final class StoreNoticeQueryService
     /**
      * @return Builder<StoreNotice>
      */
-    public function getStoreNoticesQuery(Request $request, ?Authenticatable $user): Builder
+    public function getStoreNoticesQuery(Request $request, ?Authenticatable $authUser): Builder
     {
+        /** @var User|null $user */
+        $user = $authUser;
+
         $query = StoreNotice::query()->whereDate('expired_at', '>=', Carbon::now());
 
         if (! $user) {
@@ -44,13 +47,16 @@ final class StoreNoticeQueryService
 
         // authenticated non-admin
         if ($request->shop_id) {
-            $shop = Shop::find($request->shop_id);
-            if ($shop) {
+            $shopId = is_numeric($request->shop_id) ? (int) $request->shop_id : 0;
+            $shop = Shop::find($shopId);
+            if ($shop instanceof Shop) {
                 $query->where('created_by', $shop->owner_id)->whereHas('shops', fn ($q) => $q->where('id', $shop->id));
             }
         } elseif ($user->managed_shop) {
-            $shopId = $user->managed_shop->id;
-            $query->where('created_by', $user->managed_shop->owner_id)
+            /** @var Shop $managedShop */
+            $managedShop = $user->managed_shop;
+            $shopId = $managedShop->id;
+            $query->where('created_by', $managedShop->owner_id)
                 ->whereHas('shops', fn ($q) => $q->where('id', $shopId));
         } else {
             $query->where('created_by', $user->id)
@@ -65,8 +71,14 @@ final class StoreNoticeQueryService
         return StoreNotice::with(['creator', 'users', 'shops', 'read_status'])->findOrFail($id);
     }
 
-    public function getStoreNoticeTypes(?Authenticatable $user): array
+    /**
+     * @return array<int, array<string, string>>
+     */
+    public function getStoreNoticeTypes(?Authenticatable $authUser): array
     {
+        /** @var User|null $user */
+        $user = $authUser;
+
         if ($user && $user->hasPermissionTo(Permission::SUPER_ADMIN->value)) {
             return [
                 ['name' => 'ALL VENDOR', 'value' => StoreNoticeType::ALL_VENDOR->value],
@@ -80,12 +92,28 @@ final class StoreNoticeQueryService
         ];
     }
 
-    public function getUsersToNotify(Request $request, ?Authenticatable $user): Collection
+    /**
+     * @return Collection<int, mixed>
+     */
+    public function getUsersToNotify(Request $request, ?Authenticatable $authUser): Collection
     {
-        if ($user->hasPermissionTo(Permission::SUPER_ADMIN->value)) {
-            return User::permission(Permission::STORE_OWNER->value)->orderBy('name')->get();
+        /** @var User|null $user */
+        $user = $authUser;
+
+        if (! $user) {
+            return collect();
         }
 
-        return $user->shops()->where('is_active', true)->get();
+        if ($user->hasPermissionTo(Permission::SUPER_ADMIN->value)) {
+            /** @var Collection<int, mixed> $result */
+            $result = User::permission(Permission::STORE_OWNER->value)->orderBy('name')->get();
+
+            return $result;
+        }
+
+        /** @var Collection<int, mixed> $resultShop */
+        $resultShop = $user->shops()->where('is_active', true)->get();
+
+        return $resultShop;
     }
 }

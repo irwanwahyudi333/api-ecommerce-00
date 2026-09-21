@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Modules\Type\Services;
 
 use App\Models\Type;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Cache;
 
 final class TypeQueryService
@@ -13,9 +12,9 @@ final class TypeQueryService
     private const CACHE_TTL_SECONDS = 3600; // 1 hour
 
     /**
-     * @return LengthAwarePaginator<Type>
+     * @return \Illuminate\Pagination\LengthAwarePaginator<int, Type>
      */
-    public function getTypesByLanguage(string $language, int $limit): LengthAwarePaginator
+    public function getTypesByLanguage(string $language, int $limit): \Illuminate\Pagination\LengthAwarePaginator
     {
         $cacheKey = "types_{$language}_{$limit}";
 

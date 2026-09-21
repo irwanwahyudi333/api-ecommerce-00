@@ -2,11 +2,15 @@
 
 namespace App\Modules\StoreNotice\Http\Resources;
 
+use App\Models\StoreNotice;
 use App\Modules\Shop\Http\Resources\ShopResource;
 use App\Modules\User\Http\Resources\UserResource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
+/**
+ * @property StoreNotice $resource
+ */
 class GetSingleStoreNoticeResource extends JsonResource
 {
     /**

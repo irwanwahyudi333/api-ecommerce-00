@@ -12,6 +12,7 @@ use App\Modules\Tax\Http\Requests\TaxCreateRequest;
 use App\Modules\Tax\Http\Requests\TaxUpdateRequest;
 use App\Modules\Tax\Http\Resources\TaxResource;
 use App\Modules\Tax\Services\TaxQueryService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class TaxController extends BaseController
@@ -23,14 +24,14 @@ class TaxController extends BaseController
         private readonly DeleteTaxAction $deleteAction,
     ) {}
 
-    public function index()
+    public function index(): JsonResponse
     {
         $taxes = $this->queryService->getAll();
 
         return $this->sendSuccess(TaxResource::collection($taxes), 'Taxes retrieved');
     }
 
-    public function store(TaxCreateRequest $request)
+    public function store(TaxCreateRequest $request): JsonResponse
     {
         $this->authorize('create', Tax::class);
 
@@ -40,14 +41,14 @@ class TaxController extends BaseController
         return $this->sendSuccess(new TaxResource($tax), 'Tax created', 201);
     }
 
-    public function show($id)
+    public function show(int|string $id): JsonResponse
     {
         $tax = $this->queryService->findOrFail((int) $id);
 
         return $this->sendSuccess(new TaxResource($tax), 'Tax detail');
     }
 
-    public function update(TaxUpdateRequest $request, $id)
+    public function update(TaxUpdateRequest $request, int|string $id): JsonResponse
     {
         $tax = $this->queryService->findOrFail((int) $id);
         $this->authorize('update', $tax);
@@ -58,7 +59,7 @@ class TaxController extends BaseController
         return $this->sendSuccess(new TaxResource($updated), 'Tax updated');
     }
 
-    public function destroy(Request $request, $id)
+    public function destroy(Request $request, int|string $id): JsonResponse
     {
         $tax = $this->queryService->findOrFail((int) $id);
         $this->authorize('delete', $tax);

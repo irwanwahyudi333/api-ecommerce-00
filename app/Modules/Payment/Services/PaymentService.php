@@ -9,8 +9,8 @@ use App\Models\Order;
 use App\Models\PaymentGateway;
 use App\Models\PaymentIntent;
 use App\Models\User;
-use App\Modules\Payment\Contracts\PaymentProviderInterface;
 use App\Modules\Payment\Factory\PaymentProviderFactory;
+use App\Services\Payment\Contracts\PaymentProviderInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -151,8 +151,8 @@ class PaymentService
 
         $data = [
             'amount' => ((float) $order->paid_total) - (int) ($walletAmount ?? 0),
-            'order_tracking_number' => $order->tracking_number,
-            'currency' => config('shop.default_currency', 'usd'),
+            'order_tracking_number' => is_scalar($order->tracking_number) ? (string) $order->tracking_number : '',
+            'currency' => is_string(config('shop.default_currency')) ? config('shop.default_currency') : 'usd',
         ];
 
         /** @var User|null $customer */

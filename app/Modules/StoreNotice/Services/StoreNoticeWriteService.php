@@ -27,9 +27,12 @@ final class StoreNoticeWriteService
     public function createStoreNotice(StoreNoticeData $data, Authenticatable $creator): StoreNotice
     {
         $storeNotice = $this->createStoreNoticeAction->execute($data);
-        $this->syncUsersOrShops($storeNotice, $data->type, $data->received_by);
+        $this->syncUsersOrShops($storeNotice, (string) $data->type, $data->received_by);
         $this->syncReadStatus($storeNotice, $data->received_by);
-        event(new StoreNoticeEvent($storeNotice, 'create', $creator));
+
+        /** @var User $userCreator */
+        $userCreator = $creator;
+        event(new StoreNoticeEvent($storeNotice, 'create', $userCreator));
 
         return $storeNotice;
     }
@@ -37,9 +40,12 @@ final class StoreNoticeWriteService
     public function updateStoreNotice(StoreNotice $storeNotice, StoreNoticeData $data, Authenticatable $updater): StoreNotice
     {
         $updated = $this->updateStoreNoticeAction->execute($storeNotice, $data);
-        $this->syncUsersOrShops($updated, $data->type, $data->received_by);
+        $this->syncUsersOrShops($updated, (string) $data->type, $data->received_by);
         $this->syncReadStatus($updated, $data->received_by);
-        event(new StoreNoticeEvent($updated, 'update', $updater));
+
+        /** @var User $userUpdater */
+        $userUpdater = $updater;
+        event(new StoreNoticeEvent($updated, 'update', $userUpdater));
 
         return $updated;
     }
@@ -49,6 +55,9 @@ final class StoreNoticeWriteService
         $this->deleteStoreNoticeAction->execute($storeNotice);
     }
 
+    /**
+     * @param  array<int>|null  $receivedBy
+     */
     private function syncUsersOrShops(StoreNotice $notice, string $type, ?array $receivedBy): void
     {
         if ($type === StoreNoticeType::ALL_VENDOR->value) {
@@ -64,8 +73,12 @@ final class StoreNoticeWriteService
         }
     }
 
+    /**
+     * @param  array<int>|null  $receivedBy
+     */
     private function syncReadStatus(StoreNotice $notice, ?array $receivedBy): void
     {
+        /** @var array<int|string> $userIds */
         $userIds = [];
         if ($notice->type === StoreNoticeType::ALL_VENDOR->value) {
             $userIds = User::permission(Permission::STORE_OWNER->value)->pluck('id')->toArray();
@@ -77,9 +90,11 @@ final class StoreNoticeWriteService
         } elseif ($notice->type === StoreNoticeType::SPECIFIC_SHOP->value && $receivedBy) {
             $userIds = Shop::whereIn('id', $receivedBy)->with('owner')->get()->pluck('owner.id')->toArray();
         }
-        $userIds = array_unique(array_filter($userIds));
-        foreach ($userIds as $userId) {
-            $notice->read_status()->syncWithoutDetaching([$userId => ['is_read' => false]]);
+        /** @var array<int|string> $filtered */
+        $filtered = array_filter($userIds);
+        $uniqueUserIds = array_unique(array_map(fn (int|string $id) => (string) $id, $filtered));
+        foreach ($uniqueUserIds as $userId) {
+            $notice->read_status()->syncWithoutDetaching([(int) $userId => ['is_read' => false]]);
         }
     }
 }

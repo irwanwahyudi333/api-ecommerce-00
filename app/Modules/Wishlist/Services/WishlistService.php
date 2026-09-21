@@ -3,19 +3,19 @@
 namespace App\Modules\Wishlist\Services;
 
 use App\Models\Product;
+use App\Models\User;
 use App\Models\Wishlist;
 use App\Modules\Wishlist\DTO\WishlistData;
-use Illuminate\Contracts\Auth\Authenticatable;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class WishlistService
 {
     /**
      * Ambil semua produk dalam wishlist user (untuk pagination)
      *
-     * @return LengthAwarePaginator<Product>
+     * @return LengthAwarePaginator<int, Product>
      */
-    public function getUserWishlistProducts(Authenticatable $user, int $perPage = 15): LengthAwarePaginator
+    public function getUserWishlistProducts(User $user, int $perPage = 15): LengthAwarePaginator
     {
         $productIds = Wishlist::where('user_id', $user->id)->pluck('product_id');
 
@@ -25,7 +25,7 @@ class WishlistService
     /**
      * Cek apakah user sudah menambahkan product ke wishlist
      */
-    public function isInWishlist(Authenticatable $user, int $productId): bool
+    public function isInWishlist(User $user, int $productId): bool
     {
         return Wishlist::where('user_id', $user->id)->where('product_id', $productId)->exists();
     }
@@ -50,13 +50,13 @@ class WishlistService
      *
      * @return bool true jika berhasil dihapus
      */
-    public function removeFromWishlist(Authenticatable $user, int $productId): bool
+    public function removeFromWishlist(User $user, int $productId): bool
     {
         $wishlist = Wishlist::where('user_id', $user->id)
             ->where('product_id', $productId)
             ->first();
         if ($wishlist) {
-            return $wishlist->delete();
+            return (bool) $wishlist->delete();
         }
 
         return false;
@@ -66,13 +66,13 @@ class WishlistService
      * Hapus wishlist berdasarkan id wishlist (bukan product_id)
      * Digunakan di endpoint destroy dengan parameter id wishlist
      */
-    public function deleteWishlistById(Authenticatable $user, int $wishlistId): bool
+    public function deleteWishlistById(User $user, int $wishlistId): bool
     {
         $wishlist = Wishlist::where('id', $wishlistId)
             ->where('user_id', $user->id)
             ->first();
         if ($wishlist) {
-            return $wishlist->delete();
+            return (bool) $wishlist->delete();
         }
 
         return false;

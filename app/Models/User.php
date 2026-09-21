@@ -8,6 +8,7 @@ use App\Notifications\VerifyEmailNotification;
 use Illuminate\Auth\Passwords\CanResetPassword;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -15,6 +16,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Carbon;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 
@@ -24,7 +26,15 @@ use Spatie\Permission\Traits\HasRoles;
  * @property string $email
  * @property bool $is_active
  * @property int|null $shop_id
+ * @property string $password
+ * @property Carbon|null $locked_until
+ * @property Carbon|null $email_verified_at
+ * @property int $failed_login_attempts
  * @property Wallet|null $wallet
+ * @property Profile|null $profile
+ * @property Collection<int, Address> $address
+ * @property Collection<int, Shop> $shops
+ * @property Shop|null $managed_shop
  */
 class User extends Authenticatable implements MustVerifyEmail
 {

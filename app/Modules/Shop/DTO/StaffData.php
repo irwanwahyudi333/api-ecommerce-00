@@ -19,9 +19,9 @@ final class StaffData
     public static function fromValidated(array $data, int $shopId): self
     {
         return new self(
-            name: $data['name'],
-            email: $data['email'],
-            password: $data['password'],
+            name: is_string($data['name']) ? $data['name'] : '',
+            email: is_string($data['email']) ? $data['email'] : '',
+            password: is_string($data['password']) ? $data['password'] : '',
             shop_id: $shopId,
         );
     }

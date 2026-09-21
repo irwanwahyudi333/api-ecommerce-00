@@ -17,10 +17,13 @@ class ProcessOwnershipTransition
 
     public User $newOwner;
 
+    /** @var array<string, mixed>|null */
     public ?array $optional;
 
     /**
      * Create a new event instance.
+     *
+     * @param  array<string, mixed>|null  $optional
      */
     public function __construct(Shop $shop, User $previousOwner, User $newOwner, ?array $optional = null)
     {

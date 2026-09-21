@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Modules\User\Exceptions\SocialLoginException;
 use Illuminate\Support\Facades\DB;
 use Laravel\Socialite\Facades\Socialite;
+use Laravel\Socialite\Two\AbstractProvider;
 
 /**
  * Dipisah dari AuthService karena alur social-login punya kompleksitas
@@ -24,10 +25,15 @@ final class SocialLoginService
     public function handle(string $provider, string $accessToken): User
     {
         if (! in_array($provider, self::ALLOWED_PROVIDERS, true)) {
-            throw new SocialLoginException(config('notice.PLEASE_LOGIN_USING_FACEBOOK_OR_GOOGLE'));
+            /** @var string $message */
+            $message = config('notice.PLEASE_LOGIN_USING_FACEBOOK_OR_GOOGLE');
+            throw new SocialLoginException($message);
         }
 
-        $socialUser = Socialite::driver($provider)->stateless()->userFromToken($accessToken);
+        /** @var AbstractProvider $driver */
+        $driver = Socialite::driver($provider);
+        /** @var \Laravel\Socialite\Two\User $socialUser */
+        $socialUser = $driver->stateless()->userFromToken($accessToken);
         $email = $socialUser->getEmail();
 
         if (! $email) {
@@ -78,7 +84,8 @@ final class SocialLoginService
 
             if (! $existingUser) {
                 $settings = Settings::getData();
-                $points = (int) data_get($settings, 'options.signupPoints', 0);
+                $pointsRaw = data_get($settings, 'options.signupPoints', 0);
+                $points = is_numeric($pointsRaw) ? (int) $pointsRaw : 0;
                 if ($points > 0) {
                     GiveSignupPointsJob::dispatch($user->id, $points);
                 }

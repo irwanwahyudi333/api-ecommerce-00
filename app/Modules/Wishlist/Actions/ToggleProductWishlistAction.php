@@ -34,7 +34,11 @@ final class ToggleProductWishlistAction
             ->exists();
 
         if ($exists) {
-            $this->removeAction->execute(User::find($data->user_id), $data->product_id); // Assuming user can be found
+            $user = User::find($data->user_id);
+            if (! $user) {
+                throw new \InvalidArgumentException('User not found');
+            }
+            $this->removeAction->execute($user, $data->product_id);
 
             return ['toggled' => true, 'added' => false, 'removed' => true];
         } else {

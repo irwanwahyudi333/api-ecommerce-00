@@ -11,6 +11,9 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class TagService
 {
+    /**
+     * @return LengthAwarePaginator<int, Tag>
+     */
     public function getTags(string $language, int $perPage = 15): LengthAwarePaginator
     {
         return Tag::where('language', $language)
@@ -39,7 +42,10 @@ class TagService
     {
         $tag->update($data->toArray());
 
-        return $tag->fresh();
+        /** @var Tag $freshTag */
+        $freshTag = $tag->fresh();
+
+        return $freshTag;
     }
 
     public function deleteTag(Tag $tag, User $user): void

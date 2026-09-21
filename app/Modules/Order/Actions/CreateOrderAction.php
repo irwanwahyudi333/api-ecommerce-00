@@ -24,6 +24,7 @@ use App\Modules\Order\Services\OrderIdentityService;
 use App\Modules\Payment\Services\PaymentService;
 use App\Modules\Wallet\Services\WalletService;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
@@ -269,7 +270,7 @@ class CreateOrderAction
             return;
         }
         $digitalFile = $productModel->digital_file;
-        if (! $digitalFile) {
+        if (! $digitalFile instanceof Model) {
             return;
         }
 

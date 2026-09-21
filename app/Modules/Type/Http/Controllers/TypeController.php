@@ -11,7 +11,9 @@ use App\Modules\Type\DTO\TypeData;
 use App\Modules\Type\Http\Requests\TypeRequest;
 use App\Modules\Type\Http\Resources\TypeResource;
 use App\Modules\Type\Services\TypeQueryService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class TypeController extends BaseController
 {
@@ -22,49 +24,60 @@ class TypeController extends BaseController
         private readonly DeleteTypeAction $deleteAction,
     ) {}
 
-    public function index(Request $request)
+    public function index(Request $request): JsonResponse
     {
-        $language = $request->language ?? config('shop.default_language', 'id');
-        $limit = $request->limit ?? 15;
+        /** @var string $defaultLanguage */
+        $defaultLanguage = config('shop.default_language', 'id');
+        $language = is_string($request->language) ? $request->language : $defaultLanguage;
+        $limit = is_numeric($request->limit) ? (int) $request->limit : 15;
         $types = $this->queryService->getTypesByLanguage($language, $limit);
 
+        /** @var LengthAwarePaginator<int, Type> $paginator */
+        $paginator = $types;
+
         return $this->sendPaginated(
-            $types,
-            TypeResource::collection($types->getCollection()),
+            $paginator,
+            TypeResource::collection($paginator->getCollection()),
             'Daftar type berhasil diambil.'
         );
     }
 
-    public function store(TypeRequest $request)
+    public function store(TypeRequest $request): JsonResponse
     {
         $this->authorize('create', Type::class);
 
-        $data = TypeData::fromRequest($request->validated());
+        /** @var array<string, mixed> $validated */
+        $validated = $request->validated();
+        $data = TypeData::fromRequest($validated);
         $type = $this->createAction->execute($data);
 
         return $this->sendSuccess(new TypeResource($type->load('banners')), 'Type created', 201);
     }
 
-    public function show(Request $request, string $params)
+    public function show(Request $request, string $params): JsonResponse
     {
-        $language = $request->language ?? config('shop.default_language', 'id');
+        /** @var string $defaultLanguage */
+        $defaultLanguage = config('shop.default_language', 'id');
+        $language = is_string($request->language) ? $request->language : $defaultLanguage;
         $type = $this->queryService->getTypeByIdOrSlug($params, $language);
 
         return $this->sendSuccess(new TypeResource($type), 'Type detail');
     }
 
-    public function update(TypeRequest $request, int $id)
+    public function update(TypeRequest $request, int $id): JsonResponse
     {
         $type = $this->queryService->findOrFail($id);
         $this->authorize('update', $type);
 
-        $data = TypeData::fromRequest($request->validated());
+        /** @var array<string, mixed> $validated */
+        $validated = $request->validated();
+        $data = TypeData::fromRequest($validated);
         $updated = $this->updateAction->execute($type, $data);
 
         return $this->sendSuccess(new TypeResource($updated), 'Type updated');
     }
 
-    public function destroy(Request $request, int $id)
+    public function destroy(Request $request, int $id): JsonResponse
     {
         $type = $this->queryService->findOrFail($id);
         $this->authorize('delete', $type);

@@ -15,7 +15,7 @@ final class CreateTypeAction
 
     public function execute(TypeData $data): Type
     {
-        $slug = $data->slug ?? Str::slug($data->name);
+        $slug = $data->slug ?? Str::slug($data->name ?? '');
 
         // Proteksi duplikasi slug manual di bahasa yang sama
         $count = Type::where('slug', 'like', "{$slug}%")->where('language', $data->language)->count();

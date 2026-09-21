@@ -34,6 +34,9 @@ final class UpdateTypeAction
 
         Cache::forget(self::CACHE_KEY_PREFIX.$type->language.'_*'); // Invalidate cache
 
-        return $type->fresh('banners');
+        /** @var Type $freshType */
+        $freshType = $type->fresh('banners');
+
+        return $freshType;
     }
 }

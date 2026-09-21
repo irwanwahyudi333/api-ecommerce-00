@@ -13,6 +13,10 @@ namespace App\Modules\User\DTO;
  */
 final readonly class RegisterUserData
 {
+    /**
+     * @param  array<string, mixed>|null  $profile
+     * @param  array<string, mixed>|null  $address
+     */
     public function __construct(
         public string $name,
         public string $email,
@@ -23,7 +27,7 @@ final readonly class RegisterUserData
     ) {}
 
     /**
-     * @param  array<string, mixed>  $validated  Data yang SUDAH lolos validasi FormRequest.
+     * @param  array{name: string, email: string, password: string, profile?: array<string, mixed>|null, address?: array<string, mixed>|null}  $validated
      * @param  string|null  $requestedPermission  Diteruskan terpisah dari controller setelah
      *                                            melalui pengecekan otorisasi (anti privilege-escalation).
      */

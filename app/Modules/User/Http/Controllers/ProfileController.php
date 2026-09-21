@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Modules\User\Http\Controllers;
 
 use App\Http\Controllers\BaseController;
+use App\Models\User;
 use App\Modules\Attachment\Http\Requests\AttachmentRequest;
 use App\Modules\Attachment\Services\AttachmentWriteService;
 use App\Modules\User\Actions\ChangePasswordAction;
@@ -28,9 +29,12 @@ final class ProfileController extends BaseController
 
     public function me(Request $request): JsonResponse
     {
+        /** @var User $user */
         $user = $request->user();
         if (! $user) {
-            throw new AuthorizationException(config('notice.NOT_AUTHORIZED'));
+            /** @var string $message */
+            $message = config('notice.NOT_AUTHORIZED');
+            throw new AuthorizationException($message);
         }
 
         // Eager loading eksplisit -> mencegah N+1 saat relasi diakses di Resource/response.
@@ -42,8 +46,12 @@ final class ProfileController extends BaseController
 
     public function update(UserUpdateRequest $request): JsonResponse
     {
+        /** @var User $user */
         $user = $request->user();
-        $data = UpdateUserData::fromValidated($request->validated());
+
+        /** @var array{name?: string|null, email?: string|null, profile?: array<string, mixed>|null, address?: array<string, mixed>|null} $validated */
+        $validated = $request->validated();
+        $data = UpdateUserData::fromValidated($validated);
         $updated = $this->userCommandService->updateSelf($user, $data);
 
         return $this->sendSuccess(new UserResource($updated), 'User updated');
@@ -51,12 +59,17 @@ final class ProfileController extends BaseController
 
     public function getUser(Request $request): JsonResponse
     {
-        return $this->sendSuccess($request->user(), 'User data retrieved successfully');
+        /** @var User $user */
+        $user = $request->user();
+
+        return $this->sendSuccess($user, 'User data retrieved successfully');
     }
 
     public function updateUser(Request $request): JsonResponse
     {
+        /** @var User $user */
         $user = $request->user();
+        /** @var array<string, mixed> $data */
         $data = $request->validate([
             'name' => 'sometimes|string|max:255',
             'email' => 'sometimes|string|email|max:255|unique:users,email,'.$user->id,
@@ -70,6 +83,7 @@ final class ProfileController extends BaseController
 
     public function deleteUser(Request $request): JsonResponse
     {
+        /** @var User $user */
         $user = $request->user();
         $user->delete();
 
@@ -78,8 +92,12 @@ final class ProfileController extends BaseController
 
     public function changePassword(ChangePasswordRequest $request, ChangePasswordAction $action): JsonResponse
     {
+        /** @var User $user */
         $user = $request->user();
-        $success = $action->execute($user, $request->validated('old_password'), $request->validated('new_password'));
+
+        /** @var array{old_password: string, new_password: string} $validated */
+        $validated = $request->validated();
+        $success = $action->execute($user, $validated['old_password'], $validated['new_password']);
 
         if (! $success) {
             return $this->sendError('Password lama tidak sesuai.', 400);
@@ -98,13 +116,18 @@ final class ProfileController extends BaseController
             return $this->sendError('Validation failed', 422, $validator->errors());
         }
 
-        $this->userCommandService->updateEmail($request->user(), $validator->validated()['email']);
+        /** @var User $user */
+        $user = $request->user();
+        /** @var array{email: string} $validated */
+        $validated = $validator->validated();
+        $this->userCommandService->updateEmail($user, $validated['email']);
 
         return $this->sendSuccess(null, 'Email updated, please verify your new email');
     }
 
     public function updateAvatar(AttachmentRequest $request): JsonResponse
     {
+        /** @var User $user */
         $user = $request->user();
         $this->authorize('updateAvatar', $user);
 
@@ -113,6 +136,7 @@ final class ProfileController extends BaseController
             throw new HttpException(400, 'Failed to upload avatar.');
         }
 
+        /** @var array{url: string} $avatarData */
         $avatarData = $uploaded[0]; // Ambil avatar pertama dari hasil upload
         $updatedUser = $this->userCommandService->updateAvatar($user, $avatarData['url']);
 
@@ -121,6 +145,7 @@ final class ProfileController extends BaseController
 
     public function deleteAvatar(Request $request): JsonResponse
     {
+        /** @var User $user */
         $user = $request->user();
         $this->authorize('deleteAvatar', $user);
 
@@ -130,6 +155,7 @@ final class ProfileController extends BaseController
         }
 
         // Asumsi avatar disimpan sebagai array JSON di user_profiles.avatar, dan mengandung 'path'
+        /** @var string|null $avatarPath */
         $avatarPath = $user->profile->avatar['path'] ?? null;
         if ($avatarPath) {
             $this->attachmentWriteService->deleteByPath($avatarPath); // Asumsi ada method deleteByPath di AttachmentWriteService

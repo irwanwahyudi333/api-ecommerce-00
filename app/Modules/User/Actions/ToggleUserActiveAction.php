@@ -22,7 +22,10 @@ final class ToggleUserActiveAction
                 Product::whereIn('shop_id', $shopIds)->update(['status' => 'draft']);
             }
 
-            return $target->fresh();
+            $freshUser = $target->fresh();
+            assert($freshUser instanceof User);
+
+            return $freshUser;
         });
     }
 }

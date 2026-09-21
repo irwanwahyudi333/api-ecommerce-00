@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\Hash;
 final class CreateUserAction
 {
     /**
-     * @param  array{name:string,email:string,password:string,shop_id?:?int,profile?:?array,address?:?array}  $validated
+     * @param  array{name:string,email:string,password:string,shop_id?:?int,profile?:?array<string, mixed>,address?:?array<string, mixed>}  $validated
      */
     public function execute(array $validated): User
     {
@@ -30,17 +30,24 @@ final class CreateUserAction
             ]);
 
             if (! empty($validated['profile'])) {
-                $user->profile()->create(Arr::only($validated['profile'], ['avatar', 'bio', 'socials']));
+                /** @var array<string, mixed> $profileData */
+                $profileData = Arr::only($validated['profile'], ['avatar', 'bio', 'socials']);
+                $user->profile()->create($profileData);
             }
 
             if (! empty($validated['address'])) {
-                $user->address()->create(Arr::only(
+                /** @var array<string, mixed> $addressData */
+                $addressData = Arr::only(
                     $validated['address'],
                     ['street_address', 'city', 'state', 'zip', 'country']
-                ));
+                );
+                $user->address()->create($addressData);
             }
 
-            return $user->fresh(['profile', 'address']);
+            $freshUser = $user->fresh(['profile', 'address']);
+            assert($freshUser instanceof User);
+
+            return $freshUser;
         });
     }
 }

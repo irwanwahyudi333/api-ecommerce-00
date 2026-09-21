@@ -6,6 +6,7 @@ namespace App\Modules\User\Http\Controllers;
 
 use App\Enums\Permission;
 use App\Http\Controllers\BaseController;
+use App\Models\User;
 use App\Modules\User\DTO\RegisterUserData;
 use App\Modules\User\Http\Requests\ForgotPasswordRequest;
 use App\Modules\User\Http\Requests\LoginRequest;
@@ -15,6 +16,7 @@ use App\Modules\User\Http\Requests\SocialLoginRequest;
 use App\Modules\User\Services\AuthService;
 use App\Modules\User\Services\UserSecurityService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\URL;
 
@@ -32,9 +34,14 @@ final class AuthController extends BaseController
 
     public function login(LoginRequest $request): JsonResponse
     {
-        // Rate limiting
-        $ip = $request->ip();
-        $email = $request->validated('email');
+        /** @var string|null $ipRaw */
+        $ipRaw = $request->ip();
+        $ip = $ipRaw ?? '';
+
+        /** @var array{email: string, password: string} $validated */
+        $validated = $request->validated();
+        $email = $validated['email'];
+        $password = $validated['password'];
 
         if (! $this->securityService->enforceRateLimit($ip, $email)) {
             return $this->sendError('Terlalu banyak percobaan login. Silakan coba lagi nanti.', 429);
@@ -42,22 +49,27 @@ final class AuthController extends BaseController
 
         $result = $this->authService->attemptLogin(
             $email,
-            $request->validated('password'),
+            $password,
             $request
         );
 
         return match ($result['status']) {
             'invalid' => $this->sendError('Email atau password tidak valid.', 401),
             'locked' => $this->sendError('Akun dikunci sementara.', 423, [
-                'locked_until' => $result['locked_until'],
+                'locked_until' => $result['locked_until'] ?? null,
             ]),
             'unverified' => $this->sendError('Silakan verifikasi email Anda terlebih dahulu.', 403),
-            'success' => $this->respondWithToken($result['user'], $request),
+            'success' => $this->respondWithToken($result['user'] ?? null, $request), // Will handle null inside or assert
+            default => $this->sendError('Unknown error', 500),
         };
     }
 
-    private function respondWithToken($user, Request $request): JsonResponse
+    private function respondWithToken(?User $user, Request $request): JsonResponse
     {
+        if (! $user) {
+            return $this->sendError('User not found', 404);
+        }
+
         $token = $this->authService->issueToken($user, $request->userAgent());
 
         // Track session activity
@@ -74,12 +86,15 @@ final class AuthController extends BaseController
 
     public function register(RegisterRequest $request): JsonResponse
     {
-        $requestedPermission = $request->validated('permission');
+        $requestedPermissionRaw = $request->validated('permission');
+        $requestedPermission = is_string($requestedPermissionRaw) ? $requestedPermissionRaw : null;
         if ($requestedPermission === Permission::SUPER_ADMIN->value) {
             $requestedPermission = null;
         }
 
-        $data = RegisterUserData::fromValidated($request->validated(), $requestedPermission);
+        /** @var array{name: string, email: string, password: string, profile?: array<string, mixed>|null, address?: array<string, mixed>|null} $validated */
+        $validated = $request->validated();
+        $data = RegisterUserData::fromValidated($validated, $requestedPermission);
         $user = $this->authService->register($data);
 
         $token = $this->authService->issueToken($user, 'register');
@@ -93,12 +108,15 @@ final class AuthController extends BaseController
 
     public function socialLogin(SocialLoginRequest $request): JsonResponse
     {
+        /** @var array{provider: string, access_token: string} $validated */
+        $validated = $request->validated();
+
         $user = $this->authService->socialLogin(
-            $request->validated('provider'),
-            $request->validated('access_token')
+            $validated['provider'],
+            $validated['access_token']
         );
 
-        $token = $this->authService->issueToken($user, $request->validated('provider').'-login');
+        $token = $this->authService->issueToken($user, $validated['provider'].'-login');
 
         return $this->sendSuccess([
             'token' => $token,
@@ -139,13 +157,16 @@ final class AuthController extends BaseController
         }
     }
 
-    public function emailVerify($user, Request $request, $id, $hash): JsonResponse
+    /**
+     * @return RedirectResponse
+     */
+    public function emailVerify(string $id, string $hash, Request $request)
     {
         if (! URL::hasValidSignature($request)) {
             abort(403, 'Invalid signature.');
         }
 
-        // $user = User::findOrFail($id);
+        $user = User::findOrFail($id);
 
         if (! hash_equals(
             sha1($user->getEmailForVerification()),
@@ -158,20 +179,29 @@ final class AuthController extends BaseController
             $user->markEmailAsVerified();
         }
 
+        /** @var string $frontendUrl */
+        $frontendUrl = config('app.frontend_url');
+
         return redirect(
-            config('app.frontend_url').'/email-verified?success=1'
+            $frontendUrl.'/email-verified?success=1'
         );
     }
 
     public function emailVerifyNotification(Request $request): JsonResponse
     {
-        if ($request->user()->hasVerifiedEmail()) {
+        /** @var User|null $user */
+        $user = $request->user();
+        if (! $user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
+        if ($user->hasVerifiedEmail()) {
             return response()->json([
                 'message' => 'Email already verified.',
             ]);
         }
 
-        $request->user()->sendEmailVerificationNotification();
+        $user->sendEmailVerificationNotification();
 
         return response()->json([
             'message' => 'Verification email sent.',
@@ -180,8 +210,14 @@ final class AuthController extends BaseController
 
     public function getEmailVerified(Request $request): JsonResponse
     {
+        /** @var User|null $user */
+        $user = $request->user();
+        if (! $user) {
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        }
+
         return response()->json([
-            'verified' => $request->user()->hasVerifiedEmail(),
+            'verified' => $user->hasVerifiedEmail(),
         ]);
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Modules\Terms\Http\Resources;
 
 use App\Models\TermsAndConditions;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 /**
@@ -10,18 +11,22 @@ use Illuminate\Http\Resources\Json\JsonResource;
  */
 class TermsConditionResource extends JsonResource
 {
+    /**
+     * @param  Request  $request
+     * @return array<string, mixed>
+     */
     public function toArray($request)
     {
         return [
-            'id' => $this->resource->id,
-            'title' => $this->resource->title,
-            'slug' => $this->resource->slug,
-            'description' => $this->resource->description,
-            'type' => $this->resource->type,
-            'issued_by' => $this->resource->issued_by,
-            'is_approved' => $this->resource->is_approved,
-            'language' => $this->resource->language,
-            'translated_languages' => $this->resource->translated_languages,
+            'id' => $this->id,
+            'title' => $this->title,
+            'slug' => $this->slug,
+            'description' => $this->description,
+            'type' => $this->type,
+            'issued_by' => $this->issued_by,
+            'is_approved' => $this->is_approved,
+            'language' => $this->language,
+            'translated_languages' => $this->translated_languages,
         ];
     }
 }

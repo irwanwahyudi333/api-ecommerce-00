@@ -4,5 +4,6 @@ includes:
 
 parameters:
     paths:
-        - app/Modules/Feedback
-    level: 8
+        - app/Modules
+    level: 10
+    treatPhpDocTypesAsCertain: false

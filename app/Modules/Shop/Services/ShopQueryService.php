@@ -12,9 +12,15 @@ use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\Pivot;
+use Illuminate\Support\Arr;
 
 final class ShopQueryService
 {
+    /**
+     * @return Builder<Shop>
+     */
     public function listQuery(): Builder
     {
         return Shop::query()
@@ -44,6 +50,9 @@ final class ShopQueryService
         return $shop;
     }
 
+    /**
+     * @return LengthAwarePaginator<int, Shop>
+     */
     public function findNewOrInactive(bool $isActive, int $perPage): LengthAwarePaginator
     {
         return Shop::query()
@@ -58,7 +67,9 @@ final class ShopQueryService
      */
     public function findNearby(float $lat, float $lng, ?float $maxDistanceKm = null): Collection
     {
-        $maxDistance = $maxDistanceKm ?? (float) (Settings::getData()->options['maxShopDistance'] ?? 1000);
+        $options = (array) Settings::getData()->options;
+        $maxDistanceVal = Arr::get($options, 'maxShopDistance', 1000);
+        $maxDistance = $maxDistanceKm ?? (is_numeric($maxDistanceVal) ? (float) $maxDistanceVal : 1000.0);
 
         return Shop::query()
             ->where('is_active', true)
@@ -81,6 +92,9 @@ final class ShopQueryService
         return $user->follow_shops()->where('shops.id', $shopId)->exists();
     }
 
+    /**
+     * @return LengthAwarePaginator<int, Model&object{pivot: Pivot}>
+     */
     public function followedShops(User $user, int $perPage): LengthAwarePaginator
     {
         return $user->follow_shops()->paginate($perPage);
@@ -102,11 +116,15 @@ final class ShopQueryService
             ->get();
     }
 
+    /**
+     * @param  array<mixed, mixed>  $filters
+     * @return LengthAwarePaginator<int, Shop>
+     */
     public function search(string $query, int $limit, array $filters = []): LengthAwarePaginator
     {
         return Shop::search($query)
             ->when(isset($filters['is_active']), fn ($q) => $q->where('is_active', (bool) $filters['is_active']))
-            ->when(isset($filters['owner_id']), fn ($q) => $q->where('owner_id', (int) $filters['owner_id']))
+            ->when(isset($filters['owner_id']), fn ($q) => $q->where('owner_id', $filters['owner_id']))
             ->paginate($limit);
     }
 }

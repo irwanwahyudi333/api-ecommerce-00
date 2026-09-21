@@ -50,7 +50,10 @@ final class AttemptLoginAction
 
         $this->registerSuccessfulLogin($user, $request);
 
-        return ['status' => 'success', 'user' => $user->fresh()];
+        $freshUser = $user->fresh();
+        assert($freshUser instanceof User);
+
+        return ['status' => 'success', 'user' => $freshUser];
     }
 
     private function registerSuccessfulLogin(User $user, Request $request): void

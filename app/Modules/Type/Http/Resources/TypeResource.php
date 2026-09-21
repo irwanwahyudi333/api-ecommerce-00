@@ -11,19 +11,25 @@ use Illuminate\Http\Resources\Json\JsonResource;
  */
 class TypeResource extends JsonResource
 {
+    /**
+     * @return array<string, mixed>
+     */
     public function toArray(Request $request): array
     {
+        /** @var Type $resource */
+        $resource = $this->resource;
+
         return [
-            'id' => $this->resource->id,
-            'name' => $this->resource->name,
-            'slug' => $this->resource->slug,
-            'icon' => $this->resource->icon,
-            'language' => $this->resource->language,
-            'translated_languages' => $this->resource->translated_languages,
-            'settings' => $this->resource->settings,
-            'promotional_sliders' => $this->resource->promotional_sliders,
-            'images' => $this->resource->images,
-            'banners' => $this->whenLoaded('banners'),
+            'id' => $resource->id,
+            'name' => $resource->name,
+            'slug' => $resource->slug,
+            'icon' => $resource->icon,
+            'language' => $resource->language,
+            'translated_languages' => $resource->translated_languages,
+            'settings' => $resource->settings,
+            'promotional_sliders' => $resource->promotional_sliders,
+            'images' => $resource->images,
+            'banners' => $resource->relationLoaded('banners') ? $resource->banners : null,
         ];
     }
 }

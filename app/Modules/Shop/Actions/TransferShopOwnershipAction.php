@@ -30,11 +30,16 @@ final class TransferShopOwnershipAction
             ]
         );
 
+        $owner = $shop->owner;
+        if (! $owner instanceof User) {
+            throw new \RuntimeException('Shop does not have a valid owner.');
+        }
+
         // Event listener disarankan implement ShouldQueue karena proses ini
         // kemungkinan mengirim notifikasi/email ke vendor baru (I/O eksternal).
         event(new ProcessOwnershipTransition(
             $shop,
-            $shop->owner,
+            $owner,
             $newOwner,
             ['message' => $vendorMessage]
         ));

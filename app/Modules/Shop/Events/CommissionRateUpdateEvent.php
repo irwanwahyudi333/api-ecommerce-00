@@ -12,9 +12,9 @@ class CommissionRateUpdateEvent
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
-    public $shop;
+    public Shop $shop;
 
-    public $balance;
+    public Balance $balance;
 
     public function __construct(Shop $shop, Balance $balance)
     {

@@ -12,12 +12,15 @@ class TagCreateRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        /** @var User $user */
+        /** @var User|null $user */
         $user = $this->user();
 
-        return $user && $user->can('create', Tag::class);
+        return $user !== null && $user->can('create', Tag::class);
     }
 
+    /**
+     * @return array<string, string>
+     */
     public function rules(): array
     {
         return [

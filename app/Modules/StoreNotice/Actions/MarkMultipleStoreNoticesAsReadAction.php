@@ -8,11 +8,14 @@ use App\Models\StoreNotice;
 
 final class MarkMultipleStoreNoticesAsReadAction
 {
+    /**
+     * @param  array<int>  $noticeIds
+     */
     public function execute(array $noticeIds, int $userId): void
     {
         foreach ($noticeIds as $noticeId) {
             $notice = StoreNotice::find($noticeId);
-            if ($notice) {
+            if ($notice instanceof StoreNotice) {
                 $notice->read_status()->syncWithoutDetaching([$userId => ['is_read' => true]]);
             }
         }

@@ -5,8 +5,10 @@ namespace App\Modules\Terms\Services;
 use App\Enums\Permission;
 use App\Models\Shop;
 use App\Models\TermsAndConditions;
+use App\Models\User;
 use App\Modules\Terms\DTO\TermsData;
 use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 
 class TermsService
@@ -28,6 +30,7 @@ class TermsService
             return false;
         }
 
+        /** @var User $user */
         if ($user->hasPermissionTo(Permission::STORE_OWNER->value)) {
             return $shop->owner_id === $user->id;
         }
@@ -38,9 +41,14 @@ class TermsService
         return false;
     }
 
+    /**
+     * @return Builder<TermsAndConditions>
+     */
     public function getTermsQuery(Request $request, ?Authenticatable $user)
     {
-        $language = $request->language ?? config('shop.default_language', 'id');
+        $defaultLang = config('shop.default_language', 'id');
+        $defaultLang = is_scalar($defaultLang) ? (string) $defaultLang : 'id';
+        $language = isset($request->language) && is_scalar($request->language) ? (string) $request->language : $defaultLang;
         $query = TermsAndConditions::with('shop')->where('language', $language);
 
         if ($user && $user->hasPermissionTo(Permission::SUPER_ADMIN->value)) {
@@ -48,18 +56,22 @@ class TermsService
         }
 
         if ($user && $user->hasPermissionTo(Permission::STORE_OWNER->value)) {
-            if ($request->shop_id && $this->hasPermission($user, $request->shop_id)) {
-                return $query->where('shop_id', $request->shop_id);
+            $shopId = is_scalar($request->shop_id) ? (int) $request->shop_id : null;
+            if ($shopId && $this->hasPermission($user, $shopId)) {
+                return $query->where('shop_id', $shopId);
             }
 
+            /** @var User $user */
             return $query->whereIn('shop_id', $user->shops->pluck('id'));
         }
 
         if ($user && $user->hasPermissionTo(Permission::STAFF->value)) {
-            if ($request->shop_id && $this->hasPermission($user, $request->shop_id)) {
-                return $query->where('shop_id', $request->shop_id);
+            $shopId = is_scalar($request->shop_id) ? (int) $request->shop_id : null;
+            if ($shopId && $this->hasPermission($user, $shopId)) {
+                return $query->where('shop_id', $shopId);
             }
 
+            /** @var User $user */
             return $query->where('shop_id', $user->shop_id);
         }
 
@@ -91,11 +103,14 @@ class TermsService
         ]);
     }
 
+    /**
+     * @param  array<string, mixed>  $data
+     */
     public function update(TermsAndConditions $term, array $data): TermsAndConditions
     {
         $term->update($data);
 
-        return $term->fresh();
+        return $term->refresh();
     }
 
     public function approve(TermsAndConditions $term): void

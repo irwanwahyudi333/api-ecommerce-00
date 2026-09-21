@@ -21,7 +21,12 @@ final class UpdateStoreNoticeAction
         ], fn ($v) => ! is_null($v));
 
         $storeNotice->update($attributes);
+        $fresh = $storeNotice->fresh();
 
-        return $storeNotice->fresh();
+        if (! $fresh instanceof StoreNotice) {
+            throw new \RuntimeException('Failed to refresh StoreNotice.');
+        }
+
+        return $fresh;
     }
 }

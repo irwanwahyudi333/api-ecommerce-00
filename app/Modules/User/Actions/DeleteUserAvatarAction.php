@@ -18,7 +18,10 @@ final class DeleteUserAvatarAction
                 $profile->save();
             }
 
-            return $user->fresh('profile');
+            $freshUser = $user->fresh('profile');
+            assert($freshUser instanceof User);
+
+            return $freshUser;
         });
     }
 }

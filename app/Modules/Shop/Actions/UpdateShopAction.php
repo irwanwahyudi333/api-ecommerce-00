@@ -17,6 +17,8 @@ final class UpdateShopAction
             $shop->categories()->sync($data->categories);
         }
 
-        return $shop->fresh(['categories', 'owner']);
+        $shop->load(['categories', 'owner']);
+
+        return $shop;
     }
 }

@@ -7,50 +7,58 @@ namespace App\Modules\Terms\Services;
 use App\Enums\Permission;
 use App\Models\Shop;
 use App\Models\TermsAndConditions;
+use App\Models\User;
 use Illuminate\Contracts\Auth\Authenticatable;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 final class TermsQueryService
 {
     /**
-     * @return LengthAwarePaginator<TermsAndConditions>
+     * @return LengthAwarePaginator<int, TermsAndConditions>
      */
     public function getTermsQuery(Request $request, ?Authenticatable $user): LengthAwarePaginator
     {
-        $language = $request->language ?? config('shop.default_language', 'id');
+        $defaultLang = config('shop.default_language', 'id');
+        $defaultLang = is_scalar($defaultLang) ? (string) $defaultLang : 'id';
+        $language = isset($request->language) && is_scalar($request->language) ? (string) $request->language : $defaultLang;
+        $limit = is_scalar($request->limit) ? (int) $request->limit : 10;
+        $shopId = is_scalar($request->shop_id) ? (int) $request->shop_id : null;
+
         $query = TermsAndConditions::with('shop')->where('language', $language);
 
         // This hasPermission logic should be handled by policy in controller.
         // For query purposes, we'll build the query based on user's role/permissions if available.
         if ($user) {
             if ($user->hasPermissionTo(Permission::SUPER_ADMIN->value)) {
-                return $query->paginate($request->limit ?? 10);
+                return $query->paginate($limit);
             }
 
             if ($user->hasPermissionTo(Permission::STORE_OWNER->value)) {
-                if ($request->shop_id && $this->userCanAccessShop($user, (int) $request->shop_id)) {
-                    return $query->where('shop_id', (int) $request->shop_id)->paginate($request->limit ?? 10);
+                if ($shopId && $this->userCanAccessShop($user, $shopId)) {
+                    return $query->where('shop_id', $shopId)->paginate($limit);
                 }
 
-                return $query->whereIn('shop_id', $user->shops->pluck('id'))->paginate($request->limit ?? 10);
+                /** @var User $user */
+                return $query->whereIn('shop_id', $user->shops->pluck('id'))->paginate($limit);
             }
 
             if ($user->hasPermissionTo(Permission::STAFF->value)) {
-                if ($request->shop_id && $this->userCanAccessShop($user, (int) $request->shop_id)) {
-                    return $query->where('shop_id', (int) $request->shop_id)->paginate($request->limit ?? 10);
+                if ($shopId && $this->userCanAccessShop($user, $shopId)) {
+                    return $query->where('shop_id', $shopId)->paginate($limit);
                 }
 
-                return $query->where('shop_id', $user->shop_id)->paginate($request->limit ?? 10);
+                /** @var User $user */
+                return $query->where('shop_id', $user->shop_id)->paginate($limit);
             }
         }
 
         // Guest or customer, or authenticated user without specific roles for terms management
-        if ($request->shop_id) {
-            return $query->where('shop_id', (int) $request->shop_id)->where('is_approved', true)->paginate($request->limit ?? 10);
+        if ($shopId) {
+            return $query->where('shop_id', $shopId)->where('is_approved', true)->paginate($limit);
         }
 
-        return $query->where('is_approved', true)->paginate($request->limit ?? 10);
+        return $query->where('is_approved', true)->paginate($limit);
     }
 
     public function find(string $slug, string $language): TermsAndConditions
@@ -70,6 +78,7 @@ final class TermsQueryService
             return false;
         }
 
+        /** @var User $user */
         if ($user->hasPermissionTo(Permission::STORE_OWNER->value)) {
             return $shop->owner_id === $user->id;
         }

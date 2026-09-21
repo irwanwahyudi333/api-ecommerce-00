@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\Collection;
 
 class TaxService
 {
+    /**
+     * @return Collection<int, Tax>
+     */
     public function getAll(): Collection
     {
         return Tax::all();
@@ -17,17 +20,23 @@ class TaxService
         return Tax::findOrFail($id);
     }
 
+    /**
+     * @param  array<string, mixed>  $data
+     */
     public function create(array $data): Tax
     {
         return Tax::create($data);
     }
 
+    /**
+     * @param  array<string, mixed>  $data
+     */
     public function update(int $id, array $data): Tax
     {
         $tax = Tax::findOrFail($id);
         $tax->update($data);
 
-        return $tax->fresh();
+        return $tax->refresh();
     }
 
     public function delete(int $id): void

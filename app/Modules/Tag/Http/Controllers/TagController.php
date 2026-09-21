@@ -6,6 +6,7 @@ namespace App\Modules\Tag\Http\Controllers;
 
 use App\Http\Controllers\BaseController;
 use App\Models\Tag;
+use App\Models\User;
 use App\Modules\Tag\DTO\TagData;
 use App\Modules\Tag\Http\Requests\TagCreateRequest;
 use App\Modules\Tag\Http\Requests\TagUpdateRequest;
@@ -13,6 +14,7 @@ use App\Modules\Tag\Http\Resources\TagResource;
 use App\Modules\Tag\Services\TagService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class TagController extends BaseController
 {
@@ -20,8 +22,13 @@ class TagController extends BaseController
 
     public function index(Request $request): JsonResponse
     {
-        $language = $request->get('language', config('shop.default_language', 'id'));
-        $limit = (int) $request->get('limit', 15);
+        $langRaw = $request->get('language', config('shop.default_language', 'id'));
+        $language = is_string($langRaw) ? $langRaw : 'id';
+
+        $limitRaw = $request->get('limit', 15);
+        $limit = is_numeric($limitRaw) ? (int) $limitRaw : 15;
+
+        /** @var LengthAwarePaginator<int, Tag> $tags */
         $tags = $this->tagService->getTags($language, $limit);
 
         return $this->sendPaginated(
@@ -36,7 +43,9 @@ class TagController extends BaseController
         $this->authorize('create', Tag::class);
 
         $data = TagData::fromRequest($request);
-        $tag = $this->tagService->createTag($data, $request->user());
+        /** @var User $user */
+        $user = $request->user();
+        $tag = $this->tagService->createTag($data, $user);
 
         return $this->sendSuccess(
             new TagResource($tag),
@@ -47,7 +56,8 @@ class TagController extends BaseController
 
     public function show(Request $request, string $param): JsonResponse
     {
-        $language = $request->get('language', config('shop.default_language', 'id'));
+        $langRaw = $request->get('language', config('shop.default_language', 'id'));
+        $language = is_string($langRaw) ? $langRaw : 'id';
         $tag = $this->tagService->getTagByIdOrSlug($param, $language);
 
         return $this->sendSuccess(
@@ -62,7 +72,9 @@ class TagController extends BaseController
         $this->authorize('update', $tag);
 
         $data = TagData::fromRequest($request);
-        $updated = $this->tagService->updateTag($tag, $data, $request->user());
+        /** @var User $user */
+        $user = $request->user();
+        $updated = $this->tagService->updateTag($tag, $data, $user);
 
         return $this->sendSuccess(
             new TagResource($updated),
@@ -75,7 +87,9 @@ class TagController extends BaseController
         $tag = Tag::findOrFail($id);
         $this->authorize('delete', $tag);
 
-        $this->tagService->deleteTag($tag, $request->user());
+        /** @var User $user */
+        $user = $request->user();
+        $this->tagService->deleteTag($tag, $user);
 
         return $this->sendSuccess(
             null,

@@ -23,7 +23,7 @@ final class ApproveShopData
     public static function fromValidated(array $data): self
     {
         return new self(
-            admin_commission_rate: isset($data['admin_commission_rate'])
+            admin_commission_rate: isset($data['admin_commission_rate']) && is_numeric($data['admin_commission_rate'])
                 ? (float) $data['admin_commission_rate']
                 : null,
             is_custom_commission: (bool) ($data['is_custom_commission'] ?? false),

@@ -15,10 +15,15 @@ final class ShopData
     public function __construct(
         public readonly ?string $name = null,
         public readonly ?string $description = null,
+        /** @var array<mixed, mixed>|null */
         public readonly ?array $cover_image = null,
+        /** @var array<mixed, mixed>|null */
         public readonly ?array $logo = null,
+        /** @var array<mixed, mixed>|null */
         public readonly ?array $address = null,
+        /** @var array<mixed, mixed>|null */
         public readonly ?array $settings = null,
+        /** @var array<mixed, mixed>|null */
         public readonly ?array $notifications = null,
         /** @var list<int>|null */
         public readonly ?array $categories = null,
@@ -31,14 +36,14 @@ final class ShopData
     public static function fromValidated(array $data): self
     {
         return new self(
-            name: $data['name'] ?? null,
-            description: $data['description'] ?? null,
-            cover_image: $data['cover_image'] ?? null,
-            logo: $data['logo'] ?? null,
-            address: $data['address'] ?? null,
-            settings: $data['settings'] ?? null,
-            notifications: $data['notifications'] ?? null,
-            categories: $data['categories'] ?? null,
+            name: isset($data['name']) && is_string($data['name']) ? $data['name'] : null,
+            description: isset($data['description']) && is_string($data['description']) ? $data['description'] : null,
+            cover_image: isset($data['cover_image']) && is_array($data['cover_image']) ? $data['cover_image'] : null,
+            logo: isset($data['logo']) && is_array($data['logo']) ? $data['logo'] : null,
+            address: isset($data['address']) && is_array($data['address']) ? $data['address'] : null,
+            settings: isset($data['settings']) && is_array($data['settings']) ? $data['settings'] : null,
+            notifications: isset($data['notifications']) && is_array($data['notifications']) ? $data['notifications'] : null,
+            categories: isset($data['categories']) && is_array($data['categories']) ? array_map(fn ($val) => is_numeric($val) ? (int) $val : 0, array_values($data['categories'])) : null,
         );
     }
 

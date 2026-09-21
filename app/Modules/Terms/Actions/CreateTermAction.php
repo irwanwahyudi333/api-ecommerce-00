@@ -23,7 +23,7 @@ final class CreateTermAction
             'title' => $data->title,
             'description' => $data->description,
             'language' => $data->language,
-            'slug' => $data->slug ?? Str::slug($data->title),
+            'slug' => $data->slug ?? Str::slug((string) $data->title),
             'user_id' => $data->user_id,
             'shop_id' => $data->shop_id,
             'type' => $type,

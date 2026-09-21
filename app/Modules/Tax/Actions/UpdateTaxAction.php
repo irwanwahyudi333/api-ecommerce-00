@@ -30,6 +30,6 @@ final class UpdateTaxAction
 
         Cache::forget(self::CACHE_KEY_ALL); // Invalidate cache
 
-        return $tax->fresh();
+        return $tax->refresh();
     }
 }

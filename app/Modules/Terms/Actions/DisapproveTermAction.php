@@ -16,6 +16,6 @@ final class DisapproveTermAction
 
         Cache::forget("terms_{$term->language}_*"); // Invalidate cache
 
-        return $term->fresh();
+        return $term->refresh();
     }
 }

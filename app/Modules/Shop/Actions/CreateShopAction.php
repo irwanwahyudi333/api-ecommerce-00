@@ -17,6 +17,8 @@ final class CreateShopAction
             $shop->categories()->attach($data->categories);
         }
 
-        return $shop->fresh(['categories', 'owner']);
+        $shop->load(['categories', 'owner']);
+
+        return $shop;
     }
 }
