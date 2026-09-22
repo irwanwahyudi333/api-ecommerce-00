@@ -89,6 +89,8 @@ Route::get('/best-selling-products', [ProductMetricController::class, 'bestSelli
 Route::get('/check-availability', [ProductRentalController::class, 'checkAvailability']);
 Route::get('/products/calculate-rental-price', [ProductRentalController::class, 'calculateRentalPrice']);
 Route::get('/products/search', [ProductQueryController::class, 'search']);
+Route::middleware(['auth:sanctum', 'email.verified', 'permission:'.Permission::STAFF->value.'|'.Permission::STORE_OWNER->value])
+    ->get('/products/low-stock', [ProductInventoryController::class, 'lowStock']);
 Route::apiResource('/products', ProductQueryController::class)->only(['index', 'show']);
 
 // Authors
@@ -127,10 +129,7 @@ Route::apiResource('/resources', ResourceController::class)->only(['index', 'sho
 // Coupon verify (public)
 Route::post('/coupons/verify', [CouponController::class, 'verify']);
 
-Route::group(['middleware' => ['auth:sanctum', 'email.verified', 'permission:'.Permission::CUSTOMER->value]], function () {
-    // Coupon (index & show) - hanya untuk customer yang login
-    Route::apiResource('/coupons', CouponController::class)->only(['index', 'show']);
-});
+// Note: Customer coupon routes are registered in the Customer middleware group below
 
 // Attributes (public read)
 Route::apiResource('/attributes', AttributeController::class)->only(['index', 'show']);
@@ -139,9 +138,9 @@ Route::get('/export-attributes/{shop_id}', [AttributeController::class, 'exportA
 
 // Shops (public listing & detail)
 Route::get('/shops', [ShopController::class, 'index']);
-Route::get('/shops/{shop:slug}', [ShopController::class, 'show']);
-Route::get('/near-by-shop', [ShopController::class, 'nearByShop']);
 Route::get('/shops/search', [ShopQueryController::class, 'search']);
+Route::get('/near-by-shop', [ShopController::class, 'nearByShop']);
+Route::get('/shops/{shop:slug}', [ShopController::class, 'show']);
 
 // Settings (public read)
 Route::apiResource('/settings', SettingsController::class)->only(['index']);
@@ -174,7 +173,7 @@ Route::apiResource('/terms-and-conditions', TermsAndConditionsController::class)
 Route::apiResource('/flash-sale', FlashSaleController::class)->only(['index', 'show']);
 
 // Refund policies
-Route::resource('/refund-policies', RefundPolicyController::class)->only(['index', 'show']);
+Route::apiResource('/refund-policies', RefundPolicyController::class)->only(['index', 'show']);
 
 // Store notices (public index)
 Route::get('/store-notices', [StoreNoticeController::class, 'index'])->name('store-notices.index');
@@ -213,7 +212,7 @@ Route::group(['middleware' => ['auth:sanctum', 'email.verified', 'permission:'.P
     // Orders
     Route::get('/my-orders', [OrderQueryController::class, 'myOrders']);
     Route::post('/orders', [OrderTransactionController::class, 'store']);
-    Route::get('/orders/{identifier}', [OrderQueryController::class, 'show']);
+    Route::get('/orders/{identifier}', [OrderQueryController::class, 'show'])->where('identifier', '^(?!stats$).+');
     Route::post('/orders/{id}/cancel', [OrderTransactionController::class, 'cancel']);
 
     // Reviews (create, update)
@@ -246,7 +245,7 @@ Route::group(['middleware' => ['auth:sanctum', 'email.verified', 'permission:'.P
     Route::apiResource('/attachments', AttachmentController::class)->only(['store', 'update', 'destroy']);
 
     // Addresses
-    Route::apiResource('addresses', AddressController::class)->middleware('throttle:60,1')->except(['show', 'index']);
+    Route::apiResource('/addresses', AddressController::class)->middleware('throttle:60,1')->except(['show', 'index']);
 
     // Refunds
     Route::apiResource('/refunds', RefundController::class)->only(['index', 'store', 'show']);
@@ -262,11 +261,11 @@ Route::group(['middleware' => ['auth:sanctum', 'email.verified', 'permission:'.P
     Route::get('/followed-shops-popular-products', [ProductQueryController::class, 'followedShopsPopularProducts']);
 
     // Payment methods
-    Route::apiResource('/payment-methods', PaymentMethodController::class);
     Route::get('/payment-methods/gateways', [PaymentMethodController::class, 'gateways']);
     Route::post('/payment-methods/save', [PaymentMethodController::class, 'savePaymentMethod']);
     Route::post('/payment-methods/setup-intent', [PaymentMethodController::class, 'saveCardIntent']);
     Route::post('/payment-methods/set-default', [PaymentMethodController::class, 'setDefaultCard']);
+    Route::apiResource('/payment-methods', PaymentMethodController::class);
 
     // Notify logs
     Route::apiResource('/notify-logs', NotifyLogsController::class)->except(['destroy']);
@@ -311,7 +310,7 @@ Route::group(['middleware' => ['auth:sanctum', 'email.verified', 'permission:'.P
     // Store notices (full)
     Route::get('/store-notices/getStoreNoticeType', [StoreNoticeController::class, 'getStoreNoticeType']);
     Route::get('/store-notices/getUsersToNotify', [StoreNoticeController::class, 'getUsersToNotify']);
-    Route::post('/store-notices/read/', [StoreNoticeController::class, 'readNotice']);
+    Route::post('/store-notices/read', [StoreNoticeController::class, 'readNotice']);
     Route::post('/store-notices/read-all', [StoreNoticeController::class, 'readAllNotice']);
     Route::apiResource('/store-notices', StoreNoticeController::class)->only(['show', 'store', 'update', 'destroy']);
 
@@ -329,7 +328,6 @@ Route::group(['middleware' => ['auth:sanctum', 'email.verified', 'permission:'.P
     Route::apiResource('/coupons', CouponController::class)->only(['update']);
 
     // Inventory management
-    Route::get('/products/low-stock', [ProductInventoryController::class, 'lowStock']);
     Route::get('/products/{product}/inventory', [ProductInventoryController::class, 'show']);
     Route::put('/products/{product}/inventory', [ProductInventoryController::class, 'update']);
 });
@@ -448,7 +446,7 @@ Route::group(['middleware' => ['auth:sanctum', 'email.verified', 'permission:'.P
     Route::post('/disapprove-terms-and-conditions', [TermsAndConditionsController::class, 'disApproveTerm']);
 
     // Refund policies (store, update, delete)
-    Route::resource('/refund-policies', RefundPolicyController::class)->only(['store', 'update', 'destroy']);
+    Route::apiResource('/refund-policies', RefundPolicyController::class)->only(['store', 'update', 'destroy']);
 
     // Coupon approval
     Route::post('/approve-coupon', [CouponController::class, 'approveCoupon']);
