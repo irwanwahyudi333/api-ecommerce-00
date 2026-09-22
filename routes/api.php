@@ -28,6 +28,7 @@ use App\Modules\Order\Http\Controllers\OrderTransactionController;
 use App\Modules\OwnershipTransfer\Http\Controllers\OwnershipTransferController;
 use App\Modules\PaymentIntent\Http\Controllers\PaymentIntentController;
 use App\Modules\PaymentMethod\Http\Controllers\PaymentMethodController;
+use App\Modules\Product\Http\Controllers\ProductController;
 use App\Modules\Product\Http\Controllers\ProductCrudController;
 use App\Modules\Product\Http\Controllers\ProductInventoryController;
 use App\Modules\Product\Http\Controllers\ProductMetricController;
@@ -86,7 +87,7 @@ Route::middleware('auth:sanctum')->get('/email/verified', [AuthController::class
 // Product public queries
 Route::get('/popular-products', [ProductMetricController::class, 'popular']);
 Route::get('/best-selling-products', [ProductMetricController::class, 'bestSelling']);
-Route::get('/check-availability', [ProductRentalController::class, 'checkAvailability']);
+Route::get('/check-availability', [ProductRentalController::class, 'checkAvailability'])->name('products.rental.checkAvailability');
 Route::get('/products/calculate-rental-price', [ProductRentalController::class, 'calculateRentalPrice']);
 Route::get('/products/search', [ProductQueryController::class, 'search']);
 Route::apiResource('/products', ProductQueryController::class)->only(['index', 'show']);
@@ -158,8 +159,8 @@ Route::apiResource('/feedbacks', FeedbackController::class)->only(['index', 'sho
 // Checkout verify (public)
 Route::post('/orders/checkout/verify', [CheckoutController::class, 'verify']);
 
-// Order track (guest)
-Route::get('/orders/track/{identifier}', [OrderQueryController::class, 'show']);
+// OrderController (public)
+Route::get('/orders/track/{identifier}', [OrderQueryController::class, 'show'])->name('orders.track');
 
 // Payment intent
 Route::get('/payment-intent', [PaymentIntentController::class, 'getPaymentIntent']);
@@ -213,7 +214,7 @@ Route::group(['middleware' => ['auth:sanctum', 'email.verified', 'permission:'.P
     // Orders
     Route::get('/my-orders', [OrderQueryController::class, 'myOrders']);
     Route::post('/orders', [OrderTransactionController::class, 'store']);
-    Route::get('/orders/{identifier}', [OrderQueryController::class, 'show']);
+    Route::get('/orders/{identifier}', [OrderQueryController::class, 'show'])->name('orders.show');
     Route::post('/orders/{id}/cancel', [OrderTransactionController::class, 'cancel']);
 
     // Reviews (create, update)
@@ -280,14 +281,16 @@ Route::group(['middleware' => ['auth:sanctum', 'email.verified', 'permission:'.P
 // ========================
 // STAFF & STORE OWNER (permission:STAFF|STORE_OWNER)
 // ========================
-Route::group(['middleware' => ['auth:sanctum', 'email.verified', 'permission:'.Permission::STAFF->value.'|'.Permission::STORE_OWNER->value]], function () {
-    // Product management (CRUD)
+Route::group(['middleware' => ['permission:'.Permission::STAFF->value.'|'.Permission::STORE_OWNER->value, 'auth:sanctum', 'email.verified']], function () {
+    // Product routes
     Route::apiResource('/products', ProductCrudController::class)->only(['store', 'update', 'destroy']);
-    Route::get('/draft-products', [ProductQueryController::class, 'draftedProducts']);
-    Route::get('/products-stock', [ProductQueryController::class, 'productStock']);
-    Route::get('/products-by-flash-sale', [ProductQueryController::class, 'getProductsByFlashSale']);
+    Route::patch('/products/{id}/stock', [ProductCrudController::class, 'updateStock'])->name('products.update-stock');
+    Route::patch('/products/{id}/status', [ProductCrudController::class, 'changeStatus'])->name('products.change-status');
+    Route::get('/draft-products', [ProductController::class, 'draftedProducts'])->name('products.draft');
+    Route::get('/products-stock', [ProductController::class, 'productStock'])->name('products.stock');
+    Route::get('/products-by-flash-sale', [FlashSaleController::class, 'getProductsByFlashSale'])->name('products.by-flash-sale');
 
-    // Resource store
+    // ResourceController
     Route::apiResource('/resources', ResourceController::class)->only(['store']);
 
     // Attributes
@@ -411,8 +414,8 @@ Route::group(['middleware' => ['auth:sanctum', 'email.verified', 'permission:'.P
     Route::post('/abusive_reports/accept', [AbusiveReportController::class, 'accept']);
     Route::post('/abusive_reports/reject', [AbusiveReportController::class, 'reject']);
 
-    // Settings (store)
-    Route::apiResource('/settings', SettingsController::class)->only(['store']);
+    // SettingsController
+    Route::apiResource('/settings', SettingsController::class)->only(['store', 'update', 'show']);
 
     // User management (full via UserManagementController)
     Route::apiResource('/users', UserManagementController::class);
@@ -462,3 +465,46 @@ Route::group(['middleware' => ['auth:sanctum', 'email.verified', 'permission:'.P
     // Ownership transfer (update, delete)
     Route::apiResource('/ownership-transfer', OwnershipTransferController::class)->only(['update', 'destroy']);
 });
+// ========================
+// Additional Module Routes
+// ========================
+
+Route::middleware(['auth:sanctum'])->group(function () {
+    // Rental Management
+    Route::middleware(['permission:super_admin|store_owner|staff'])->group(function () {
+        Route::post('/rental/availability', [ProductRentalController::class, 'checkAvailability'])->name('rental.availability');
+        Route::get('/rental/blocked-dates/{productId}', [ProductRentalController::class, 'getBlockedDates'])->name('rental.blocked-dates');
+    });
+
+    // Import/Export
+    Route::middleware(['permission:super_admin|store_owner'])->group(function () {
+        Route::post('/import-products', [ProductController::class, 'importProducts'])->name('products.import');
+        Route::post('/import-variation-options', [ProductController::class, 'importVariationOptions'])->name('products.import-variations');
+        Route::get('/export-products/{shop_id}', [ProductController::class, 'exportProducts'])->name('products.export');
+        Route::get('/export-variation-options/{shop_id}', [ProductController::class, 'exportVariableOptions'])->name('products.export-variations');
+    });
+
+    // Analytics Routes (Admin only)
+    Route::middleware(['permission:super_admin'])->prefix('admin')->group(function () {
+        Route::get('/low-stock-products', [ProductMetricController::class, 'lowStock'])->name('admin.products.low-stock');
+        Route::get('/category-wise-product', [ProductMetricController::class, 'categoryWiseProduct'])->name('admin.products.category-wise');
+        Route::get('/category-wise-product-sale', [ProductMetricController::class, 'categoryWiseProductSale'])->name('admin.products.category-wise-sale');
+        Route::get('/top-rate-product', [ProductMetricController::class, 'topRatedProducts'])->name('admin.products.top-rated');
+
+        // Flash Sale Products
+        Route::get('/requested-products-for-flash-sale', [ProductMetricController::class, 'getRequestedProductsForFlashSale'])->name('admin.flash-sale.requested-products');
+        Route::post('/approve-flash-sale-requested-products', [ProductMetricController::class, 'approveFlashSaleProductsRequest'])->name('admin.flash-sale.approve');
+        Route::post('/disapprove-flash-sale-requested-products', [ProductMetricController::class, 'disapproveFlashSaleProductsRequest'])->name('admin.flash-sale.disapprove');
+        Route::get('/product-flash-sale-info', [ProductMetricController::class, 'getFlashSaleInfoByProductID'])->name('admin.flash-sale.info');
+    });
+});
+
+// Public tags (read-only)
+Route::get('/public-tags', [TagController::class, 'index'])->name('tags.public.index');
+Route::get('/public-tags/{param}', [TagController::class, 'show'])->name('tags.public.show');
+
+// Public reviews (read-only)
+Route::get('/products/{productId}/reviews', [ReviewController::class, 'index'])->name('products.reviews.index');
+
+// Publicly accessible settings (read-only for general info)
+Route::get('/public-settings', [SettingsController::class, 'index'])->name('settings.public');

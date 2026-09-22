@@ -150,6 +150,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Resource::class, ResourcePolicy::class);
         Gate::policy(Shipping::class, ShippingPolicy::class);
         Gate::policy(Tax::class, TaxPolicy::class);
+        Gate::policy(Type::class, TypePolicy::class);
         Gate::policy(Wishlist::class, WishlistPolicy::class);
         Gate::policy(DeliveryTime::class, DeliveryTimePolicy::class);
         Gate::policy(OwnershipTransfer::class, OwnershipTransferPolicy::class);
