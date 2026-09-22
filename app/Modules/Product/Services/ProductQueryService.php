@@ -22,7 +22,6 @@ class ProductQueryService
         'tags',
         'variations',
         'variation_options',
-        'variations.inventories',
         'author',
     ];
 
