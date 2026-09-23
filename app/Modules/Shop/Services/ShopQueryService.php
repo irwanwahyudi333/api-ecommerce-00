@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\Pivot;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
 
 final class ShopQueryService
 {
@@ -71,18 +72,29 @@ final class ShopQueryService
         $maxDistanceVal = Arr::get($options, 'maxShopDistance', 1000);
         $maxDistance = $maxDistanceKm ?? (is_numeric($maxDistanceVal) ? (float) $maxDistanceVal : 1000.0);
 
-        return Shop::query()
+        if (DB::getDriverName() === 'pgsql') {
+            $latCol = "(settings->'location'->>'lat')::numeric";
+            $lngCol = "(settings->'location'->>'lng')::numeric";
+        } else {
+            $latCol = 'json_unquote(json_extract(settings, "$.location.lat"))';
+            $lngCol = 'json_unquote(json_extract(settings, "$.location.lng"))';
+        }
+
+        $baseQuery = Shop::query()
             ->where('is_active', true)
             ->whereNotNull('settings->location->lat')
             ->whereNotNull('settings->location->lng')
             ->select('shops.*')
             ->selectRaw(
-                '6371 * acos(cos(radians(?)) * cos(radians(json_unquote(json_extract(settings, "$.location.lat")))) '.
-                '* cos(radians(json_unquote(json_extract(settings, "$.location.lng"))) - radians(?)) '.
-                '+ sin(radians(?)) * sin(radians(json_unquote(json_extract(settings, "$.location.lat"))))) AS distance',
+                "6371 * acos(cos(radians(?)) * cos(radians({$latCol})) ".
+                "* cos(radians({$lngCol}) - radians(?)) ".
+                "+ sin(radians(?)) * sin(radians({$latCol}))) AS distance",
                 [$lat, $lng, $lat]
-            )
-            ->having('distance', '<', $maxDistance)
+            );
+
+        return Shop::query()
+            ->fromSub($baseQuery, 'shops')
+            ->where('distance', '<', $maxDistance)
             ->orderBy('distance')
             ->get();
     }

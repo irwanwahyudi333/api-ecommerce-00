@@ -16,7 +16,7 @@ return new class extends Migration
             $table->unsignedBigInteger('order_id');
             $table->unsignedBigInteger('product_id');
             $table->unsignedBigInteger('variation_option_id')->nullable();
-            $table->string('order_quantity');
+            $table->integer('order_quantity');
             $table->double('unit_price');
             $table->double('subtotal');
             $table->softDeletes();

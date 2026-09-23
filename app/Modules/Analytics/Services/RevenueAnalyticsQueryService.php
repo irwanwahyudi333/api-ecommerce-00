@@ -68,26 +68,26 @@ class RevenueAnalyticsQueryService
      */
     private function calculateTotalRevenue(?array $shopIds, bool $isSuperAdmin): float
     {
-        $query = DB::table('orders as childOrder')
-            ->join('orders as parentOrder', 'childOrder.parent_id', '=', 'parentOrder.id')
-            ->whereDate('childOrder.created_at', '<=', Carbon::now())
-            ->whereDate('parentOrder.created_at', '<=', Carbon::now())
-            ->where('childOrder.order_status', OrderStatus::COMPLETED->value)
-            ->where('parentOrder.order_status', OrderStatus::COMPLETED->value)
-            ->whereNotNull('childOrder.parent_id');
+        $query = DB::table('orders as child_order')
+            ->join('orders as parent_order', 'child_order.parent_id', '=', 'parent_order.id')
+            ->whereDate('child_order.created_at', '<=', Carbon::now())
+            ->whereDate('parent_order.created_at', '<=', Carbon::now())
+            ->where('child_order.order_status', OrderStatus::COMPLETED->value)
+            ->where('parent_order.order_status', OrderStatus::COMPLETED->value)
+            ->whereNotNull('child_order.parent_id');
 
         if ($isSuperAdmin) {
             /** @var numeric-string|int|float|null $val */
             $val = (clone $query)
-                ->selectRaw('SUM(childOrder.paid_total + parentOrder.delivery_fee + parentOrder.sales_tax) as total')
+                ->selectRaw('SUM(COALESCE(child_order.paid_total, 0) + COALESCE(parent_order.delivery_fee, 0) + COALESCE(parent_order.sales_tax, 0)) as total')
                 ->value('total');
 
             return (float) $val ?: 0.0;
         }
 
         return (float) (clone $query)
-            ->whereIn('childOrder.shop_id', $shopIds ?? [])
-            ->sum('childOrder.paid_total') ?: 0.0;
+            ->whereIn('child_order.shop_id', $shopIds ?? [])
+            ->sum('child_order.paid_total') ?: 0.0;
     }
 
     /**
@@ -95,25 +95,25 @@ class RevenueAnalyticsQueryService
      */
     private function calculateTodaysRevenue(?array $shopIds, bool $isSuperAdmin): float
     {
-        $query = DB::table('orders as childOrder')
-            ->join('orders as parentOrder', 'childOrder.parent_id', '=', 'parentOrder.id')
-            ->whereDate('childOrder.created_at', Carbon::today())
-            ->where('childOrder.order_status', OrderStatus::COMPLETED->value)
-            ->where('parentOrder.order_status', OrderStatus::COMPLETED->value)
-            ->whereNotNull('childOrder.parent_id');
+        $query = DB::table('orders as child_order')
+            ->join('orders as parent_order', 'child_order.parent_id', '=', 'parent_order.id')
+            ->whereDate('child_order.created_at', Carbon::today())
+            ->where('child_order.order_status', OrderStatus::COMPLETED->value)
+            ->where('parent_order.order_status', OrderStatus::COMPLETED->value)
+            ->whereNotNull('child_order.parent_id');
 
         if ($isSuperAdmin) {
             /** @var numeric-string|int|float|null $val */
             $val = (clone $query)
-                ->selectRaw('SUM(childOrder.paid_total + parentOrder.delivery_fee + parentOrder.sales_tax) as total')
+                ->selectRaw('SUM(COALESCE(child_order.paid_total, 0) + COALESCE(parent_order.delivery_fee, 0) + COALESCE(parent_order.sales_tax, 0)) as total')
                 ->value('total');
 
             return (float) $val ?: 0.0;
         }
 
         return (float) (clone $query)
-            ->whereIn('childOrder.shop_id', $shopIds ?? [])
-            ->sum('childOrder.paid_total') ?: 0.0;
+            ->whereIn('child_order.shop_id', $shopIds ?? [])
+            ->sum('child_order.paid_total') ?: 0.0;
     }
 
     /**
@@ -142,6 +142,10 @@ class RevenueAnalyticsQueryService
             'July', 'August', 'September', 'October', 'November', 'December',
         ];
 
+        $monthFormat = DB::getDriverName() === 'pgsql'
+            ? "TO_CHAR(created_at, 'FMMonth')"
+            : "DATE_FORMAT(created_at, '%M')";
+
         if ($isSuperAdmin) {
             $query = DB::table('orders')
                 ->where('order_status', OrderStatus::COMPLETED->value)
@@ -149,7 +153,7 @@ class RevenueAnalyticsQueryService
                 ->whereNull('parent_id')
                 ->select(
                     DB::raw('SUM(paid_total) as total'),
-                    DB::raw("DATE_FORMAT(created_at, '%M') as month")
+                    DB::raw("{$monthFormat} as month")
                 );
         } else {
             if (empty($shopIds)) {
@@ -163,11 +167,11 @@ class RevenueAnalyticsQueryService
                 ->whereIn('shop_id', $shopIds)
                 ->select(
                     DB::raw('SUM(amount) as total'),
-                    DB::raw("DATE_FORMAT(created_at, '%M') as month")
+                    DB::raw("{$monthFormat} as month")
                 );
         }
 
-        $totalByMonth = $query->groupBy(DB::raw("DATE_FORMAT(created_at, '%M')"))
+        $totalByMonth = $query->groupBy(DB::raw($monthFormat))
             ->pluck('total', 'month')
             ->toArray();
 

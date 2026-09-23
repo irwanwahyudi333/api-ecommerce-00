@@ -56,7 +56,7 @@ class ProductAnalyticsQueryService
         $query = Product::query()
             ->with(['shop', 'type'])
             ->where('language', $language)
-            ->whereColumn('in_stock', '<', 'low_stock_threshold');
+            ->whereColumn('available_quantity', '<=', 'low_stock_threshold');
 
         // Filter tipe
         if ($typeId) {
@@ -187,12 +187,12 @@ class ProductAnalyticsQueryService
             ->select(
                 'categories.id as category_id',
                 'categories.name as category_name',
-                DB::raw('SUM(order_items.quantity * order_items.unit_price) as total_sales')
+                DB::raw('SUM(CAST(order_product.order_quantity AS numeric) * order_product.unit_price) as total_sales')
             )
             ->join('products', 'category_product.product_id', '=', 'products.id')
             ->join('categories', 'category_product.category_id', '=', 'categories.id')
-            ->join('order_items', 'products.id', '=', 'order_items.product_id')
-            ->join('orders', 'order_items.order_id', '=', 'orders.id')
+            ->join('order_product', 'products.id', '=', 'order_product.product_id')
+            ->join('orders', 'order_product.order_id', '=', 'orders.id')
             ->where('categories.language', $language)
             ->where('orders.order_status', OrderStatus::COMPLETED->value) // hanya order selesai
             ->groupBy('categories.id', 'categories.name')
@@ -239,9 +239,7 @@ class ProductAnalyticsQueryService
             $query = Product::query()
                 ->with(['shop', 'type'])
                 ->where('language', $language)
-                ->whereHas('reviews', function ($q) {
-                    $q->where('is_approved', true);
-                })
+                ->has('reviews')
                 ->withAvg('reviews as average_rating', 'rating')
                 ->orderByDesc('average_rating')
                 ->limit($limit);

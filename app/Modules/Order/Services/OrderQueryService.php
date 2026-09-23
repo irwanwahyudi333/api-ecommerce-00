@@ -112,6 +112,7 @@ class OrderQueryService
 
         // Satu aggregate query untuk semua statistik
         $stats = (clone $query)
+            ->withoutGlobalScope('order')
             ->selectRaw("
                 COUNT(*) as total,
                 SUM(CASE WHEN order_status = 'order-pending' THEN 1 ELSE 0 END) as pending,
@@ -199,6 +200,15 @@ class OrderQueryService
                     $q->orWhereHas('customer', function ($customerQuery) use ($searchQuery) {
                         $customerQuery->whereRaw('MATCH(name, email) AGAINST(? IN BOOLEAN MODE)', [$searchQuery]);
                     });
+                });
+            } elseif (DB::getDriverName() === 'pgsql') {
+                // PostgreSQL: Gunakan ILIKE untuk case-insensitive search
+                $query->where(function ($q) use ($search) {
+                    $q->where('tracking_number', 'ilike', "%{$search}%")
+                        ->orWhereHas('customer', function ($customerQuery) use ($search) {
+                            $customerQuery->where('name', 'ilike', "%{$search}%")
+                                ->orWhere('email', 'ilike', "%{$search}%");
+                        });
                 });
             } else {
                 // Fallback untuk driver database lain (misal SQLite)

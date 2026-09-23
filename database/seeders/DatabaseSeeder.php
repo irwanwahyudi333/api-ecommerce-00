@@ -54,6 +54,7 @@ use App\Models\Wishlist;
 use App\Models\Withdraw;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class DatabaseSeeder extends Seeder
 {
@@ -63,7 +64,7 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         // Matikan foreign key checks sementara untuk truncate (opsional)
-        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        Schema::disableForeignKeyConstraints();
 
         // ============================================================
         // 1. DATA DASAR (tanpa foreign key atau hanya self-reference)
@@ -467,7 +468,7 @@ class DatabaseSeeder extends Seeder
         DownloadToken::factory(2)->create();
 
         // Aktifkan kembali foreign key checks
-        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+        Schema::enableForeignKeyConstraints();
 
         $this->call(CurrencySeeder::class);
 

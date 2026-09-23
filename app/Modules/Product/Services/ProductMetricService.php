@@ -25,7 +25,7 @@ class ProductMetricService
         $query = Product::select('products.*')
             ->join('order_product', 'order_product.product_id', 'products.id')
             ->join('orders', 'order_product.order_id', '=', 'orders.id')
-            ->selectRaw('products.*, sum(order_product.order_quantity) as total_sales')
+            ->selectRaw('products.*, sum(CAST(order_product.order_quantity AS integer)) as total_sales')
             ->whereNull('orders.parent_id')
             ->where('orders.order_status', 'order-completed')
             ->where('orders.language', $language)

@@ -100,10 +100,15 @@ class UserSecurityService
         ]);
 
         // Trim history
-        DB::table('password_history')
+        $idsToKeep = DB::table('password_history')
             ->where('user_id', $user->id)
             ->orderBy('created_at', 'desc')
-            ->skip(self::PASSWORD_HISTORY_LIMIT)
+            ->limit(self::PASSWORD_HISTORY_LIMIT)
+            ->pluck('id');
+
+        DB::table('password_history')
+            ->where('user_id', $user->id)
+            ->whereNotIn('id', $idsToKeep)
             ->delete();
 
         Log::info('Password changed', [
