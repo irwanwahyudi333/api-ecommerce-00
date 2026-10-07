@@ -16,10 +16,12 @@ class BaseController extends Controller
         int $code = 200
     ): JsonResponse {
         return response()->json([
+            'status' => 'SUCCESS',
             'success' => true,
             'code' => $code,
             'message' => $message,
             'data' => $data,
+            'timestamp' => now()->format('Y-m-d\TH:i:s.u\Z'),
         ], $code);
     }
 
@@ -29,14 +31,23 @@ class BaseController extends Controller
     protected function sendError(
         string $message,
         int $code = 400,
-        mixed $errors = null
+        mixed $errors = null,
+        ?string $errorCode = null
     ): JsonResponse {
-        return response()->json([
-            'success' => false,
+        $response = [
+            'status' => 'ERROR',
             'code' => $code,
+            'error_code' => $errorCode ?? 'API-ERR-'.$code,
             'message' => $message,
-            'errors' => $errors,
-        ], $code);
+            'path' => '/'.ltrim(request()->path(), '/'),
+            'timestamp' => now()->format('Y-m-d\TH:i:s.u\Z'),
+        ];
+        
+        if ($errors !== null) {
+            $response['errors'] = $errors;
+        }
+
+        return response()->json($response, $code);
     }
 
     /**
@@ -49,6 +60,7 @@ class BaseController extends Controller
         int $code = 200
     ): JsonResponse {
         return response()->json([
+            'status' => 'SUCCESS',
             'success' => true,
             'code' => $code,
             'message' => $message,
@@ -59,6 +71,7 @@ class BaseController extends Controller
                 'totalItems' => $paginator->total(),
                 'itemsPerPage' => $paginator->perPage(),
             ],
+            'timestamp' => now()->format('Y-m-d\TH:i:s.u\Z'),
         ], $code);
     }
 }

@@ -2,13 +2,83 @@
 
 Dokumentasi ini menjelaskan endpoint-endpoint API yang tersedia untuk aplikasi e-commerce.
 
-## Struktur URL
+## Dokumentasi Interaktif (API Reference & Playground)
 
-Semua endpoint diawali dengan `/api/`.
+Aplikasi ini menyediakan dua opsi antarmuka dokumentasi API interaktif modern:
 
-## Autentikasi
+1. **Scalar API Reference (Direkomendasikan - Modern & Elegan):**
+   - URL: `http://localhost:8000/docs/scalar` (atau `http://localhost:8000/scalar`)
+   - Fitur: UI modern yang responsif, tema gelap/terang, code generator untuk berbagai bahasa (cURL, JavaScript, Python, PHP, Go, dll.), serta integrasi API client interaktif.
 
-Beberapa endpoint memerlukan token otorisasi (Bearer Token) yang diperoleh setelah login.
+2. **Scramble / Swagger UI (Bawaan):**
+   - URL: `http://localhost:8000/docs/api`
+
+3. **OpenAPI Schema (JSON Spec):**
+   - URL: `http://localhost:8000/docs/api.json` (atau file lokal `api.json`)
+
+---
+
+## Standar Format Response
+
+### 1. Success Response
+```json
+{
+  "status": "SUCCESS",
+  "success": true,
+  "code": 200,
+  "message": "Success",
+  "data": { ... },
+  "timestamp": "2026-10-06T14:11:53.996806Z"
+}
+```
+
+### 2. Paginated Response
+```json
+{
+  "status": "SUCCESS",
+  "success": true,
+  "code": 200,
+  "message": "Data berhasil diambil.",
+  "data": [ ... ],
+  "meta": {
+    "currentPage": 1,
+    "totalPages": 10,
+    "totalItems": 100,
+    "itemsPerPage": 10
+  },
+  "timestamp": "2026-10-06T14:11:53.996806Z"
+}
+```
+
+### 3. Error Response (Standard Enterprise Format)
+Semua error (baik dari controller maupun exception global sistem) mengembalikan format seragam berikut:
+```json
+{
+  "status": "ERROR",
+  "code": 401,
+  "error_code": "API-ECMXS40107",
+  "message": "Username, password, atau captcha salah",
+  "path": "/api/login",
+  "timestamp": "2026-10-06T14:11:53.996806Z"
+}
+```
+
+Jika terjadi error validasi (HTTP 422), rincian field yang salah akan disertakan di properti `errors`:
+```json
+{
+  "status": "ERROR",
+  "code": 422,
+  "error_code": "API-ERR-422",
+  "message": "The email field is required.",
+  "path": "/api/login",
+  "timestamp": "2026-10-06T14:11:53.996806Z",
+  "errors": {
+    "email": [
+      "The email field is required."
+    ]
+  }
+}
+```
 
 ---
 

@@ -28,4 +28,49 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*'),
         );
+
+        $exceptions->render(function (\Throwable $e, Request $request) {
+            if ($request->is('api/*')) {
+                $statusCode = 500;
+                $errorCode = 'API-ERR-500';
+                $message = 'Internal Server Error';
+                $errors = null;
+
+                if ($e instanceof \Illuminate\Validation\ValidationException) {
+                    $statusCode = 422;
+                    $errorCode = 'API-ERR-422';
+                    $message = $e->getMessage();
+                    $errors = $e->errors();
+                } elseif ($e instanceof \Symfony\Component\HttpKernel\Exception\HttpExceptionInterface) {
+                    $statusCode = $e->getStatusCode();
+                    $errorCode = 'API-ERR-'.$statusCode;
+                    $message = $e->getMessage() ?: 'HTTP Error '.$statusCode;
+                } elseif ($e instanceof \Illuminate\Database\Eloquent\ModelNotFoundException) {
+                    $statusCode = 404;
+                    $errorCode = 'API-ERR-404';
+                    $message = 'Data not found.';
+                } elseif ($e instanceof \Illuminate\Auth\AuthenticationException) {
+                    $statusCode = 401;
+                    $errorCode = 'API-ERR-401';
+                    $message = 'Unauthenticated.';
+                } else {
+                    $message = config('app.debug') ? $e->getMessage() : 'Internal Server Error';
+                }
+                
+                $response = [
+                    'status' => 'ERROR',
+                    'code' => $statusCode,
+                    'error_code' => $errorCode,
+                    'message' => $message,
+                    'path' => '/'.ltrim($request->path(), '/'),
+                    'timestamp' => now()->format('Y-m-d\TH:i:s.u\Z'),
+                ];
+                
+                if ($errors !== null) {
+                    $response['errors'] = $errors;
+                }
+
+                return response()->json($response, $statusCode);
+            }
+        });
     })->create();

@@ -54,7 +54,12 @@ final class AuthController extends BaseController
         );
 
         return match ($result['status']) {
-            'invalid' => $this->sendError('Email atau password tidak valid.', 401),
+            'invalid' => $this->sendError(
+                'Username, password, atau captcha salah',
+                401,
+                null,
+                'API-ECMXS40107'
+            ),
             'locked' => $this->sendError('Akun dikunci sementara.', 423, [
                 'locked_until' => $result['locked_until'] ?? null,
             ]),

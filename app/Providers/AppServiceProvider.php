@@ -75,6 +75,11 @@ use App\Modules\User\Policies\UserPolicy;
 use App\Modules\Wishlist\Policies\WishlistPolicy;
 use App\Modules\Withdraw\Policies\WithdrawPolicy;
 use App\Services\CurrencyFormatterService;
+use Dedoc\Scramble\Scramble;
+use Dedoc\Scramble\Support\Generator\OpenApi;
+use Dedoc\Scramble\Support\Generator\Response as OpenApiResponse;
+use Dedoc\Scramble\Support\Generator\Schema;
+use Dedoc\Scramble\Support\Generator\Types as OpenApiTypes;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -159,5 +164,47 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(TermsAndConditions::class, TermsPolicy::class);
         Gate::policy(Type::class, TypePolicy::class);
         Gate::policy(Withdraw::class, WithdrawPolicy::class);
+
+        Scramble::afterOpenApiGenerated(function (OpenApi $openApi) {
+            $errorSchema = (new OpenApiTypes\ObjectType)
+                ->addProperty('status', (new OpenApiTypes\StringType)->example('ERROR'))
+                ->addProperty('code', (new OpenApiTypes\IntegerType)->example(401))
+                ->addProperty('error_code', (new OpenApiTypes\StringType)->example('API-ERR-401'))
+                ->addProperty('message', (new OpenApiTypes\StringType)->example('Unauthenticated.'))
+                ->addProperty('path', (new OpenApiTypes\StringType)->example('/api/endpoint'))
+                ->addProperty('timestamp', (new OpenApiTypes\StringType)->example('2026-10-06T15:40:48.136643Z'))
+                ->setRequired(['status', 'code', 'error_code', 'message', 'path', 'timestamp']);
+
+            $openApi->components->responses['AuthenticationException'] = OpenApiResponse::make(401)
+                ->setDescription('Unauthenticated')
+                ->setContent('application/json', Schema::fromType($errorSchema));
+
+            $forbiddenSchema = (new OpenApiTypes\ObjectType)
+                ->addProperty('status', (new OpenApiTypes\StringType)->example('ERROR'))
+                ->addProperty('code', (new OpenApiTypes\IntegerType)->example(403))
+                ->addProperty('error_code', (new OpenApiTypes\StringType)->example('API-ERR-403'))
+                ->addProperty('message', (new OpenApiTypes\StringType)->example('This action is unauthorized.'))
+                ->addProperty('path', (new OpenApiTypes\StringType)->example('/api/endpoint'))
+                ->addProperty('timestamp', (new OpenApiTypes\StringType)->example('2026-10-06T15:40:48.136643Z'))
+                ->setRequired(['status', 'code', 'error_code', 'message', 'path', 'timestamp']);
+
+            $openApi->components->responses['AuthorizationException'] = OpenApiResponse::make(403)
+                ->setDescription('Unauthorized')
+                ->setContent('application/json', Schema::fromType($forbiddenSchema));
+
+            $validationErrorSchema = (new OpenApiTypes\ObjectType)
+                ->addProperty('status', (new OpenApiTypes\StringType)->example('ERROR'))
+                ->addProperty('code', (new OpenApiTypes\IntegerType)->example(422))
+                ->addProperty('error_code', (new OpenApiTypes\StringType)->example('API-ERR-422'))
+                ->addProperty('message', (new OpenApiTypes\StringType)->example('The given data was invalid.'))
+                ->addProperty('path', (new OpenApiTypes\StringType)->example('/api/endpoint'))
+                ->addProperty('timestamp', (new OpenApiTypes\StringType)->example('2026-10-06T15:40:48.136643Z'))
+                ->addProperty('errors', (new OpenApiTypes\ObjectType)->setDescription('A detailed description of each field that failed validation.'))
+                ->setRequired(['status', 'code', 'error_code', 'message', 'path', 'timestamp', 'errors']);
+
+            $openApi->components->responses['ValidationException'] = OpenApiResponse::make(422)
+                ->setDescription('Validation error')
+                ->setContent('application/json', Schema::fromType($validationErrorSchema));
+        });
     }
 }
